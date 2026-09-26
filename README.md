@@ -2,6 +2,8 @@
 
 A gravity sandbox that runs in your browser. Throw planets, comets, stars and black holes into space and watch what gravity does with them: orbits, slingshots, collisions, tidal disruptions, supernovae and, if you're patient, life.
 
+Play it: https://lbennietech.github.io/pocket-universe/
+
 It's a single HTML file with no build step and no dependencies beyond two Google Fonts. Open `index.html` in any modern browser, or play it on GitHub Pages.
 
 ## How to play
