@@ -2508,7 +2508,11 @@
     const S = 512;
     const ox = (((-cam.x * 0.03) % S) + S) % S - S;
     const oy = (((-cam.y * 0.03) % S) + S) % S - S;
+    // Nearest-neighbour for the star tile: bilinear resampling at the fractional
+    // parallax offset is costly on phones. Restored for the scaled glow sprites.
+    ctx.imageSmoothingEnabled = false;
     for (let x = ox; x < VW; x += S) for (let y = oy; y < VH; y += S) ctx.drawImage(starTile, x, y);
+    ctx.imageSmoothingEnabled = true;
     ctx.setTransform(dpr, 0, 0, dpr, ox0 * dpr, oy0 * dpr);
 
     if (showWarp) drawWarp();

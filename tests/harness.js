@@ -318,6 +318,22 @@
       check(`scene "${s}" runs`, P().bodies.length > 0 && (window.__errs || []).length === 0,
         { bodies: P().bodies.length, dust: P().dust });
     }
+
+    // The star tile (the only 3-argument drawImage) is drawn unsmoothed, and
+    // smoothing is back on for the scaled backdrop and glow sprites
+    const proto = CanvasRenderingContext2D.prototype, realDraw = proto.drawImage;
+    const seen = { tileSmooth: 0, tile: 0, spriteRough: 0, sprite: 0 };
+    proto.drawImage = function (...a) {
+      if (this.canvas === c) {
+        if (a.length === 3) { seen.tile++; if (this.imageSmoothingEnabled) seen.tileSmooth++; }
+        else { seen.sprite++; if (!this.imageSmoothingEnabled) seen.spriteRough++; }
+      }
+      return realDraw.apply(this, a);
+    };
+    await wait(200);
+    proto.drawImage = realDraw;
+    check('star tile drawn unsmoothed, sprites smoothed',
+      seen.tile > 0 && seen.sprite > 0 && !seen.tileSmooth && !seen.spriteRough, seen);
     return { mode, checks };
   }
 

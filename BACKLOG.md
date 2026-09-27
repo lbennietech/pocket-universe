@@ -6,7 +6,6 @@ _Last audit: 2026-09-27_
 
 | ID | Area | Title | Impact | Effort | Priority | Evidence |
 |----|------|-------|--------|--------|----------|----------|
-| PERF-002 | perf | Parallax star tile bilinearly resampled every frame | 4 | 1 | 4.00 | index.html:2505-2507; phone 64.0→37.1ms with smoothing off |
 | PERF-003 | perf | Phone bench underestimates real phones ~1.7×; nothing above default speed | 4 | 1 | 4.00 | bench/run_bench.py:44,131; 412×915 dsf2.625 measured 123-139ms vs 75-89 |
 | EFF-001 | efficiency | Web fonts download 3.5× more than the game itself | 4 | 1 | 4.00 | index.html:24; 123.8KB woff2+11.4KB CSS vs 35.2KB game |
 | DESIGN-004 | design | "Go supernova" button in inspector for heavy stars | 4 | 1 | 4.00 | index.html:947,1943-1946; stars sit at 100 M☉ forever |
@@ -63,7 +62,8 @@ _Last audit: 2026-09-27_
 
 | ID | Title | Result (metric delta / notes) | Commit |
 |----|-------|-------------------------------|--------|
-| DESIGN-002 | Per-scene starting speed so Cradle/Formation pay off in seconds | Cradle/Formation now start the speed slider at rate 60 instead of RATE_DEFAULT (4), so their first payoff shows within seconds instead of ~162s; restart preserves a manually-set rate (loadScene(key, isRestart)); other scenes unaffected. Render also got noticeably faster from an unrelated env variance, baseline re-recorded (medium 13.59→11.43ms, medium-phone 78.27→49.48ms). 136/136 tests pass. | (pending push) |
+| PERF-002 | Parallax star tile bilinearly resampled every frame | The star-tile parallax draw now sets `imageSmoothingEnabled = false` around its `drawImage` calls (restored to `true` right after, so sprites/gradients are unaffected). 139/139 tests pass; playtester confirmed no visual regression. The original 64.0→37.1ms claim wasn't reproduced in headless Chromium bench (measured no meaningful difference there, ~53-66ms either way) — the benefit needs checking on a real phone or a dpr-2 profile before treating it as proven. Benchmark baseline was re-recorded a third time this session (bench/baseline.json) after confirming via a stash/pop A/B test that this machine has genuinely slowed down over the session (unrelated to any code change); Luke was informed and chose to re-baseline. | (pending push) |
+| DESIGN-002 | Per-scene starting speed so Cradle/Formation pay off in seconds | Cradle/Formation now start the speed slider at rate 60 instead of RATE_DEFAULT (4), so their first payoff shows within seconds instead of ~162s; restart preserves a manually-set rate (loadScene(key, isRestart)); other scenes unaffected. 136/136 tests pass. Benchmark baseline was also re-recorded separately (commit f97f29c) after run-to-run machine noise (unrelated to this change) was flagging false regressions against the first baseline sample. | 44c05f8 |
 
 ## Rejected / won't do
 
