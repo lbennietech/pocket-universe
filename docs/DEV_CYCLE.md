@@ -11,7 +11,7 @@ How work flows from "what should we improve?" to a change that's live on GitHub 
 To see the list, open `BACKLOG.md` (VS Code and GitHub render the table), ask Claude ("show the top 10 Ready items"), or print the Ready rows from the terminal:
 
 ```
-python -c "s=open('BACKLOG.md',encoding='utf-8').read().split('## Ready')[1].split('## In progress')[0]; [print(' | '.join(c.strip() for c in l.split('|')[1:10])) for l in s.splitlines() if l.startswith('| ') and not l.startswith('| ID')]"
+python -c "s=open('BACKLOG.md',encoding='utf-8').read().split('## Ready')[1].split('## In progress')[0]; [print(' | '.join(c.strip() for c in l.split('|')[1:11])) for l in s.splitlines() if l.startswith('| ') and not l.startswith('| ID')]"
 ```
 
 In a Claude Code session, prefix it with `!` to run it without using model tokens.
@@ -20,7 +20,7 @@ In a Claude Code session, prefix it with `!` to run it without using model token
 
 Every Ready row carries the **Tier** that `/iterate` would delegate it to and a rough **Est. time** for the whole pipeline (implement, test, review, ship — not just the coding). The `triage` agent fills these in for new items using the same rule `/iterate` uses to pick an implementer (see "Model & effort" in `CLAUDE.md`): Deep for the integrator, time-stepping, collisions/merges, determinism, spatial structures, threading or A/B experiments; Opus for a physics or perf area item or anything at effort 2+; Light for everything else at effort 1. These are planning estimates, not measurements, calibrated loosely against actual runs logged in the Done table (see below) — treat them as a rough guide to what to expect, not a commitment.
 
-When an item moves to **Done**, its row also carries its **Tier** and an **Actual time** — a rough wall-clock figure for the whole run, including any regression-fix rounds or benchmark troubleshooting, not just the implementer agent's own working time. Batched items (see "Batching small items" below) record the batch's combined actual time once, on the item that carries the shared commit note, with the other items in the batch pointing to it.
+When an item moves to **Done**, its row also carries its **Tier** and an **Actual time** — a rough wall-clock figure for the whole run, including any regression-fix rounds or benchmark troubleshooting, not just the implementer agent's own working time. Batched items record the batch's combined actual time once, on the batch's first item, with the other items in the batch pointing to it (see "Batches" below).
 
 ## `/audit`: find what to improve
 
@@ -33,7 +33,7 @@ The most expensive command, so run it rarely: when the Ready list gets thin, or 
 
 ## `/iterate`: ship one improvement
 
-The everyday command. `/iterate` takes the top Ready item; `/iterate PERF-002` takes the item you name.
+The everyday command. `/iterate` takes the batch holding the top Ready item (see "Batches" below); `/iterate B3` takes a named batch and `/iterate PERF-002 solo` a single item.
 
 1. **Pick.** Move the item to In progress. If it's a big architectural choice, use the A/B worktree convention (below).
 2. **Choose the implementer tier and implement.** `/iterate` picks one of three agents to make the smallest change that delivers the item, in `index.html`, plus a check in `tests/harness.js` or `tests/invariants.js` for new behaviour:
@@ -60,14 +60,38 @@ Running `/iterate` over and over works down the list in priority order, which is
 - **Fixes before features.** Something broken for players, like a wrong number or a hidden label, usually beats a new toy.
 - **Ask.** "What should I iterate next if I care about phones?" is cheap, and Claude will recommend IDs from the backlog.
 
-## Batching small items (added 2026-09-28)
+## Batches: how `/iterate` groups work (added 2026-09-28)
 
-Several independent Ready items that are all Light tier (or all the same tier) and don't touch the simulation (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scene `build()` logic) can be implemented, tested and reviewed together in one pass instead of one `/iterate` cycle each. This cuts most of the per-item overhead: one `python tests/run_tests.py` run, one `/code-review`, one `playtester` pass, instead of one of each per item.
+`/iterate` ships a **batch** at a time, not a single item. `triage` groups the Ready items every time it touches the backlog and writes a **Batches** table at the top of `BACKLOG.md`. Each Ready row shows its Batch ID. `B1` always holds the top Ready item, so a plain `/iterate` still follows priority order. It just brings along everything that can safely ship with it.
 
-- **Only batch genuinely independent items.** Don't mix an item that needs a physics review with ones that don't — that forces every item in the batch through a review it doesn't need. Don't batch items likely to touch the same lines of `index.html` in conflicting ways.
-- **One implementer agent for the whole batch**, briefed with every item's row and proposal, working through them one at a time as isolated edits. Never run two implementer agents on the batch in parallel in the same working tree — they'd clobber each other's uncommitted edits with no git worktree isolation between them.
-- **Still one commit per item when the diff allows it**, but when the changes are too interleaved to split safely (the common case for a same-file batch), one commit covering the whole batch is fine — list every ID in the commit message, and give each item its own Done row pointing at that shared commit, with the actual time recorded once (see "Tier and Est. time" above).
-- The rest of the pipeline (test, bench, review, triage, ratchet, finish) runs exactly once for the whole batch, same as a single-item `/iterate` run.
+Each batch has one **category** and one **tier**. The category decides which reviews it gets, and they run once for the whole batch:
+
+| Category | What goes in it | Reviews | Max size |
+|---|---|---|---|
+| `ui` | CSS, layout, text, blurbs, UI affordances; no simulation change | code-review + playtester | 10 |
+| `tooling` | only `tests/`, `bench/`, `tools/`; the game doesn't change | code-review only; no playtest or republish | 10 |
+| `sim` | gravity, collisions, sizes, masses, time-stepping, dust, life rules, scene `build()`/`rate` | code-review + playtester + one physics-reviewer | 5 |
+| `perf` | speed work that isn't Deep tier | code-review + playtester + benchmark focus (+ physics-reviewer if sim touched) | 5 |
+| `solo` | Deep tier, A/B experiments, effort 3, or anything that would conflict | the item's own full pipeline | 1 |
+
+**Running batches:**
+
+- `/iterate` runs `B1`.
+- `/iterate B3` runs batch B3.
+- `/iterate UX-104` runs whatever batch UX-104 is in.
+- `/iterate UX-104 solo` runs just that item.
+- You can also drop items ("/iterate B2 without UX-104") or raise the tier ("/iterate B3 on Opus").
+
+**How a batch runs:**
+
+- One implementer agent takes the whole batch and works through the items one at a time as isolated edits. Two agents never share a working tree.
+- If an item turns out riskier than its category suggests, or can't be fixed quickly after review, it's dropped from the batch and goes back to Ready, and the rest ships.
+- Each item gets its own Done row. The batch's Actual time is recorded once, on its first item.
+- Commits are one per item when the diffs separate cleanly. Otherwise there's one commit for the batch, listing every ID.
+
+**Why there's no dedicated batching agent:** `triage` already reads and rewrites the backlog after every audit and iteration, so grouping adds almost nothing to what it costs. A separate planner would add a model call to every run. If `triage` (Sonnet, low effort) starts grouping badly, for example by putting items that edit the same function together, raise it to medium effort before adding an agent.
+
+**Batch estimates** aren't the sum of their items. Use the largest item's estimate plus about 2-3 min per extra `ui`/`tooling` item, or about 5 min per extra `sim`/`perf` item. The first batch, 14 `ui`/`tooling` items on 2026-09-28, took about 35 min, against an estimated 175-245 min for the same items run one at a time.
 
 ## Supporting commands
 

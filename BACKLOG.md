@@ -4,51 +4,70 @@ _Last audit: 2026-09-28_
 
 Every Ready and Done row carries two extra columns, added 2026-09-28: **Tier** (which `/iterate` implementer agent would take or took it — see "Model & effort" in `CLAUDE.md`) and **Est. time** (a rough estimate of how long the full `/iterate` pipeline takes for that item, from its area/effort/tier; not a measurement). See `docs/DEV_CYCLE.md` for how these are estimated and reported.
 
+## Batches
+
+| Batch | Category | Tier | Items | Est. time | Why grouped |
+|-------|----------|------|-------|-----------|-------------|
+| B1 | tooling | Opus | PERF-003, CODE-003, EFF-004 | 30-35 min | Opus-tier tooling items (tests/bench only, no game change), grouped by priority. |
+| B2 | sim | Light | DESIGN-004, DESIGN-011, CODE-007, CODE-010, CODE-011 | 40-45 min | Light-tier sim items (effort 1); a 6th candidate (CODE-013) is split into B12 to respect the 5-item sim cap. |
+| B3 | sim | Opus | PHYS-002, PHYS-004, PHYS-005, PHYS-001, PHYS-003 | 50-55 min | Opus-tier sim items, top 5 by priority; the remaining Opus sim items are B8 to respect the 5-item cap. |
+| B4 | ui | Light | CODE-006, DESIGN-009, UX-104 | 25-30 min | Light-tier ui items (effort 1), small polish/interaction fixes. |
+| B5 | ui | Opus | DESIGN-001, UX-001, DESIGN-003, CODE-005, UX-005 | 38-42 min | Opus-tier ui items are all effort 2 (real features), kept to ~5 per item rather than the 10 cap; top 5 by priority. `DESIGN-007` (B11) builds on `DESIGN-001` here and is ordered after this batch. |
+| B6 | solo | Deep | PERF-001 | 30-40 min | A/B architecture experiment (batched paths vs. a pixel buffer or WebGL for dust rendering) — Deep tier per the tier rule, kept solo. |
+| B7 | perf | Opus | PERF-007, EFF-002, PERF-005, EFF-005 | 45-50 min | Opus-tier perf items, grouped by priority (under the 5-item perf cap). |
+| B8 | sim | Opus | DESIGN-008, DESIGN-010, CODE-009, PHYS-006, PHYS-008 | 55-60 min | Remaining Opus-tier sim items after B3, split by priority to respect the 5-item cap. |
+| B9 | ui | Opus | UX-003, CODE-008 | 27-30 min | Remaining Opus-tier ui items after B5, split to keep effort-2 ui batches near 5. |
+| B10 | solo | Opus | CODE-002 | 40-50 min | Effort-3 item; effort 3 always goes solo. |
+| B11 | solo | Opus | DESIGN-007 | 40-50 min | Effort-3 item (solo); builds on `DESIGN-001`, so it's ordered after B5, which ships that item. |
+| B12 | sim | Light | CODE-013 | 10-15 min | Overflow from B2's 6-candidate Light-sim pool, kept separate to respect the 5-item sim cap. |
+
+Batch estimates use the rule of thumb in `docs/DEV_CYCLE.md`: the largest item's estimate plus about 2-3 min per extra `ui`/`tooling` item or about 5 min per extra `sim`/`perf` item.
+
 ## Ready (sorted by priority)
 
-| ID | Area | Title | Impact | Effort | Priority | Tier | Est. time | Evidence |
-|----|------|-------|--------|--------|----------|------|-----------|----------|
-| PERF-003 | perf | Phone bench underestimates real phones ~1.7×; nothing above default speed | 4 | 1 | 4.00 | Opus | 15-20 min | bench/run_bench.py:44,131; 412×915 dsf2.625 measured 123-139ms vs 75-89 |
-| DESIGN-004 | design | "Go supernova" button in inspector for heavy stars | 4 | 1 | 4.00 | Light | 15-20 min | index.html:947,1943-1946; stars sit at 100 M☉ forever |
-| PHYS-002 | physics | Supernova ejecta below escape speed falls back; big remnants leave no nebula | 3 | 1 | 3.00 | Opus | 20-25 min | index.html:1009-1013; 384/520 survive at 11 M☉ vs 0/520 at 110 M☉ |
-| CODE-006 | code | Inspector shows stale/zero flux for new bodies and while paused | 3 | 1 | 3.00 | Light | 10 min | index.html:699,1135,1955; new planet shows ~9K "Too cold" |
-| DESIGN-011 | design | Galaxies (first scene) slow to pay off, loses its tails | 3 | 1 | 3.00 | Light | 15-20 min | scratch\play\gal-20.png, gal-40.png, galaxies-60s.png; dust 2,900→1,552 by 60s |
-| DESIGN-009 | design | Undo the last throw | 3 | 1 | 3.00 | Light | 20-25 min | scratch\play\free-bh-8.png; mis-aimed 30 M☉ black hole wiped a system in ~12s |
-| PERF-001 | perf | Dust drawn as 8,000 anti-aliased round-capped strokes is ~85% of every frame | 5 | 2 | 2.50 | Opus | 30-40 min | index.html:2181,2190-2197; medium 15.2→2.3ms removing drawTracers |
-| DESIGN-001 | design | "Share this universe" link (scene + seed in URL) | 5 | 2 | 2.50 | Opus | 30 min | index.html:553; no location/URLSearchParams/localStorage use; Mayhem varies a lot by seed |
-| CODE-007 | code | Frame time not clamped below zero | 2 | 1 | 2.00 | Light | 10 min | index.html:2608,2612 (Math.min(50,...) with no lower bound) |
-| PHYS-004 | physics | Merged planets keep their old look and name | 2 | 1 | 2.00 | Opus | 20 min | index.html:677,923; merged brown dwarfs keep planet style ("Rocky world" at several M♃) |
-| PHYS-005 | physics | Stars below ~0.14 M☉ have HZ inside the star; L/T laws off at extremes | 2 | 1 | 2.00 | Opus | 20-25 min | index.html:686,1940-1947; 0.08 M☉ HZ 2.3-3.7 units vs contact 9.0 |
-| CODE-010 | code | Momentum zeroing written four ways; Binary scene skips it, drifts | 2 | 1 | 2.00 | Light | 20 min | index.html:1264-1266,1308-1320,1366-1380,1284; binary none; COM speed 0.006-0.011 units, drift 0.5-0.9 AU/100yr seeds 1-5 (merged PHYS-007) |
-| CODE-011 | code | Repeated magic predicates, palette indices and zoom limits | 2 | 1 | 2.00 | Light | 15-20 min | index.html:797,1109,2636 (heavy-body test); 501,1167,2196 (probe colour); 1413,1475,1724 (zoom clamp) |
-| PERF-007 | perf | Formation's opening seconds cost ~2x per frame at its new starting rate | 2 | 1 | 2.00 | Opus | 15-20 min | index.html:1305,2636-2642; desktop 2.6/1.2ms (rate4) vs 5.8/5.1ms (rate60); phone profile 12.9/8.6ms vs 26.7/23.6ms; per PERF-003 real phones ~1.7x slower, opening frames could hit ~40-45ms for ~10-20s until mergers (280→81 bodies by sim time 1000) |
-| UX-001 | ux | On phones panels leave less than half the screen for the sky | 4 | 2 | 2.00 | Opus | 25-30 min | scratch\ux\pixel-mayhem-8s.png; tests/output/phone-iphone-13.png; index.html:1858 |
-| DESIGN-003 | design | Click an event in the feed to fly the camera to it | 4 | 2 | 2.00 | Opus | 25-30 min | index.html:1843,1856; scratch\play\mayhem-10s.png |
-| PHYS-001 | physics | Formation scene makes brown dwarfs, not habitable planets; life stuck at Jupiter mass | 4 | 2 | 2.00 | Opus | 30-35 min | index.html:1309-1319 (disk 0.13 M☉), seeds 1-3 largest body 61.6-72.5 M♃ by 50yr, 0 living worlds after 300yr; LIFE_MIN=10 units≈0.87 M♃ (index.html:460); rocky look only below 2 units (660-664) (merged DESIGN-005) |
-| PHYS-003 | physics | Comets shed dust forever and exhaust the dust budget | 3 | 2 | 1.50 | Opus | 25-30 min | index.html:1172-1181,1576; one comet 811 grains at 10yr → 7,201 at 100yr (capped) |
-| CODE-005 | code | Changing tool mid-throw changes what gets thrown | 3 | 2 | 1.50 | Opus | 25 min | index.html:1506,1521,1534,1572,1588,2361,2394,1862 (all read global `tool`) |
-| CODE-003 | code | Tests/bench copy engine constants and maths instead of reading them from the hook | 3 | 2 | 1.50 | Opus | 25-30 min | invariants.js:15,55-56,69; bench/scenes.js:22-30,42; harness.js:30; run_tests.py:48 |
-| UX-005 | ux | Touch targets under 44px on phones | 3 | 2 | 1.50 | Opus | 20-25 min | measured Pixel 7: help/restart 29×34, Auto-orbit 31×34, dock chips 34px (index.html:315), slider 22px, Follow/Close 28px (index.html:156) |
-| UX-003 | ux | Help teaches only throwing; shortcuts, Warp and Zones are only in tooltips | 3 | 2 | 1.50 | Opus | 25 min | scratch\ux\pixel-help.png, desktop-help.png; index.html:1812-1814 |
-| EFF-002 | efficiency | Static backdrop is a full-res offscreen canvas (~20MB at DPR 2) blitted every frame | 3 | 2 | 1.50 | Opus | 25-30 min | index.html:1445-1463,2503; measured 21.0MB offscreen canvases at 1440×900 DPR2 (backdrop 19.8MB) |
-| DESIGN-008 | design | Civilizations' probes can seed life (panspermia) | 3 | 2 | 1.50 | Opus | 30 min | index.html:1162-1167,797; probes are ordinary dust, dust only interacts with bodies ≥400 units |
-| DESIGN-010 | design | New scene: rogue black hole through a living system | 3 | 2 | 1.50 | Opus | 35-40 min | Cradle is the only scene with life and nothing threatens it |
-| CODE-002 | code | No tests for life stages, supernovae, ignition, comet shedding, keyboard fallbacks, dust cap, scene blurbs | 4 | 3 | 1.33 | Opus | 40-50 min | harness.js/invariants.js never touch updateLife (1131-1170), supernova (1003-1040), ignition (912-921), shedComets (1172-1181), dust cap (1576); harness.js:29 never sends `code` so index.html:2009-2029 fallbacks never run |
-| DESIGN-007 | design | Snapshot link for a universe you built | 4 | 3 | 1.33 | Opus | 40-50 min | index.html:1567; nothing thrown in Empty space survives a reload; no storage (builds on DESIGN-001) |
-| CODE-008 | code | Zero-sized canvas at start never recovers scene framing; resize wired twice | 2 | 2 | 1.00 | Opus | 20-25 min | index.html:1412-1413,2686-2689,2721 |
-| CODE-009 | code | `lights` and primed accelerations recomputed ad hoc and go stale within a frame | 2 | 2 | 1.00 | Opus | 25-30 min | index.html:1410,1601,2646,2711 (lights); 1408,1602,2711 (accel); ignition (914), supernova (1006), shred/cull don't update lights |
-| PERF-005 | perf | cull()→mainGroup() is O(n²): a 3-5ms hitch every 30 frames on 1,000 bodies | 2 | 2 | 1.00 | Opus | 25-35 min | large: 10/300 frames at 5.1-7.7ms vs 2.7 median, cadence frameN%30 (index.html:2648,1059-1066,1090-1093) |
-| PHYS-006 | physics | Comet-delivery bonus ignores whether the world can hold life | 1 | 1 | 1.00 | Opus | 15 min | index.html:907-909 (no DWARF or zone check) |
-| PHYS-008 | physics | Galaxies' core black holes below the tool's 3 M☉ minimum; toy-scale inspector units | 1 | 1 | 1.00 | Opus | 15-20 min | index.html:1241-1242,1496; inspector shows "Horizon 7.4km" |
-| CODE-013 | code | Misleading names and a stale comment | 1 | 1 | 1.00 | Light | 10-15 min | index.html:1142 (b.hz), 537 (T), 2057 vs 563 (local `pick` shadows global), 551-552 (stale comment) |
-| UX-104 | ux | Hint briefly ghosts over the inspector during its fade-out on phones | 1 | 1 | 1.00 | Light | 10 min | tests/output/phone-pixel-7-inspector.png; index.html:274 (`.top.inspecting ~ #hint{opacity:0}`), :318 (0.6s transition); tests/run_tests.py:235 (screenshot 600ms after tap) |
-| EFF-004 | efficiency | Long-run bench can't see likely growth sources (broader soak shows no leak) | 2 | 2 | 1.00 | Opus | 25-30 min | run_bench.py:63,92 (heap only after forced GC); long-run scene has no BH/supernova/throws/reloads; soak: heap flat, sprite cache ~80 keys |
-| EFF-005 | efficiency | Avoidable per-frame allocations: trail strokes/colours, sprite lookups, array filters | 2 | 2 | 1.00 | Opus | 30-35 min | drawTrail index.html:2066-2082 (largest JS self-time, 0.55ms medium/1.4ms large; batching measured large JS render 2.16→1.19ms); glowSprite per effect (2557); HB=bodies.filter per substep (797); lights filter per frame (2646); 3 rgba strings per body per frame (2080); GC measured only 0.02ms/frame so low priority (merged PERF-004) |
+| ID | Area | Title | Impact | Effort | Priority | Batch | Tier | Est. time | Evidence |
+|----|------|-------|--------|--------|----------|-------|------|-----------|----------|
+| PERF-003 | perf | Phone bench underestimates real phones ~1.7×; nothing above default speed | 4 | 1 | 4.00 | B1 | Opus | 15-20 min | bench/run_bench.py:44,131; 412×915 dsf2.625 measured 123-139ms vs 75-89 |
+| DESIGN-004 | design | "Go supernova" button in inspector for heavy stars | 4 | 1 | 4.00 | B2 | Light | 15-20 min | index.html:947,1943-1946; stars sit at 100 M☉ forever |
+| PHYS-002 | physics | Supernova ejecta below escape speed falls back; big remnants leave no nebula | 3 | 1 | 3.00 | B3 | Opus | 20-25 min | index.html:1009-1013; 384/520 survive at 11 M☉ vs 0/520 at 110 M☉ |
+| CODE-006 | code | Inspector shows stale/zero flux for new bodies and while paused | 3 | 1 | 3.00 | B4 | Light | 10 min | index.html:699,1135,1955; new planet shows ~9K "Too cold" |
+| DESIGN-011 | design | Galaxies (first scene) slow to pay off, loses its tails | 3 | 1 | 3.00 | B2 | Light | 15-20 min | scratch\play\gal-20.png, gal-40.png, galaxies-60s.png; dust 2,900→1,552 by 60s |
+| DESIGN-009 | design | Undo the last throw | 3 | 1 | 3.00 | B4 | Light | 20-25 min | scratch\play\free-bh-8.png; mis-aimed 30 M☉ black hole wiped a system in ~12s |
+| PERF-001 | perf | Dust drawn as 8,000 anti-aliased round-capped strokes is ~85% of every frame | 5 | 2 | 2.50 | B6 | Deep | 30-40 min | index.html:2181,2190-2197; medium 15.2→2.3ms removing drawTracers |
+| DESIGN-001 | design | "Share this universe" link (scene + seed in URL) | 5 | 2 | 2.50 | B5 | Opus | 30 min | index.html:553; no location/URLSearchParams/localStorage use; Mayhem varies a lot by seed |
+| CODE-007 | code | Frame time not clamped below zero | 2 | 1 | 2.00 | B2 | Light | 10 min | index.html:2608,2612 (Math.min(50,...) with no lower bound) |
+| PHYS-004 | physics | Merged planets keep their old look and name | 2 | 1 | 2.00 | B3 | Opus | 20 min | index.html:677,923; merged brown dwarfs keep planet style ("Rocky world" at several M♃) |
+| PHYS-005 | physics | Stars below ~0.14 M☉ have HZ inside the star; L/T laws off at extremes | 2 | 1 | 2.00 | B3 | Opus | 20-25 min | index.html:686,1940-1947; 0.08 M☉ HZ 2.3-3.7 units vs contact 9.0 |
+| CODE-010 | code | Momentum zeroing written four ways; Binary scene skips it, drifts | 2 | 1 | 2.00 | B2 | Light | 20 min | index.html:1264-1266,1308-1320,1366-1380,1284; binary none; COM speed 0.006-0.011 units, drift 0.5-0.9 AU/100yr seeds 1-5 (merged PHYS-007) |
+| CODE-011 | code | Repeated magic predicates, palette indices and zoom limits | 2 | 1 | 2.00 | B2 | Light | 15-20 min | index.html:797,1109,2636 (heavy-body test); 501,1167,2196 (probe colour); 1413,1475,1724 (zoom clamp) |
+| PERF-007 | perf | Formation's opening seconds cost ~2x per frame at its new starting rate | 2 | 1 | 2.00 | B7 | Opus | 15-20 min | index.html:1305,2636-2642; desktop 2.6/1.2ms (rate4) vs 5.8/5.1ms (rate60); phone profile 12.9/8.6ms vs 26.7/23.6ms; per PERF-003 real phones ~1.7x slower, opening frames could hit ~40-45ms for ~10-20s until mergers (280→81 bodies by sim time 1000) |
+| UX-001 | ux | On phones panels leave less than half the screen for the sky | 4 | 2 | 2.00 | B5 | Opus | 25-30 min | scratch\ux\pixel-mayhem-8s.png; tests/output/phone-iphone-13.png; index.html:1858 |
+| DESIGN-003 | design | Click an event in the feed to fly the camera to it | 4 | 2 | 2.00 | B5 | Opus | 25-30 min | index.html:1843,1856; scratch\play\mayhem-10s.png |
+| PHYS-001 | physics | Formation scene makes brown dwarfs, not habitable planets; life stuck at Jupiter mass | 4 | 2 | 2.00 | B3 | Opus | 30-35 min | index.html:1309-1319 (disk 0.13 M☉), seeds 1-3 largest body 61.6-72.5 M♃ by 50yr, 0 living worlds after 300yr; LIFE_MIN=10 units≈0.87 M♃ (index.html:460); rocky look only below 2 units (660-664) (merged DESIGN-005) |
+| PHYS-003 | physics | Comets shed dust forever and exhaust the dust budget | 3 | 2 | 1.50 | B3 | Opus | 25-30 min | index.html:1172-1181,1576; one comet 811 grains at 10yr → 7,201 at 100yr (capped) |
+| CODE-005 | code | Changing tool mid-throw changes what gets thrown | 3 | 2 | 1.50 | B5 | Opus | 25 min | index.html:1506,1521,1534,1572,1588,2361,2394,1862 (all read global `tool`) |
+| CODE-003 | code | Tests/bench copy engine constants and maths instead of reading them from the hook | 3 | 2 | 1.50 | B1 | Opus | 25-30 min | invariants.js:15,55-56,69; bench/scenes.js:22-30,42; harness.js:30; run_tests.py:48 |
+| UX-005 | ux | Touch targets under 44px on phones | 3 | 2 | 1.50 | B5 | Opus | 20-25 min | measured Pixel 7: help/restart 29×34, Auto-orbit 31×34, dock chips 34px (index.html:315), slider 22px, Follow/Close 28px (index.html:156) |
+| UX-003 | ux | Help teaches only throwing; shortcuts, Warp and Zones are only in tooltips | 3 | 2 | 1.50 | B9 | Opus | 25 min | scratch\ux\pixel-help.png, desktop-help.png; index.html:1812-1814 |
+| EFF-002 | efficiency | Static backdrop is a full-res offscreen canvas (~20MB at DPR 2) blitted every frame | 3 | 2 | 1.50 | B7 | Opus | 25-30 min | index.html:1445-1463,2503; measured 21.0MB offscreen canvases at 1440×900 DPR2 (backdrop 19.8MB) |
+| DESIGN-008 | design | Civilizations' probes can seed life (panspermia) | 3 | 2 | 1.50 | B8 | Opus | 30 min | index.html:1162-1167,797; probes are ordinary dust, dust only interacts with bodies ≥400 units |
+| DESIGN-010 | design | New scene: rogue black hole through a living system | 3 | 2 | 1.50 | B8 | Opus | 35-40 min | Cradle is the only scene with life and nothing threatens it |
+| CODE-002 | code | No tests for life stages, supernovae, ignition, comet shedding, keyboard fallbacks, dust cap, scene blurbs | 4 | 3 | 1.33 | B10 | Opus | 40-50 min | harness.js/invariants.js never touch updateLife (1131-1170), supernova (1003-1040), ignition (912-921), shedComets (1172-1181), dust cap (1576); harness.js:29 never sends `code` so index.html:2009-2029 fallbacks never run |
+| DESIGN-007 | design | Snapshot link for a universe you built | 4 | 3 | 1.33 | B11 | Opus | 40-50 min | index.html:1567; nothing thrown in Empty space survives a reload; no storage (builds on DESIGN-001) |
+| CODE-008 | code | Zero-sized canvas at start never recovers scene framing; resize wired twice | 2 | 2 | 1.00 | B9 | Opus | 20-25 min | index.html:1412-1413,2686-2689,2721 |
+| CODE-009 | code | `lights` and primed accelerations recomputed ad hoc and go stale within a frame | 2 | 2 | 1.00 | B8 | Opus | 25-30 min | index.html:1410,1601,2646,2711 (lights); 1408,1602,2711 (accel); ignition (914), supernova (1006), shred/cull don't update lights |
+| PERF-005 | perf | cull()→mainGroup() is O(n²): a 3-5ms hitch every 30 frames on 1,000 bodies | 2 | 2 | 1.00 | B7 | Opus | 25-35 min | large: 10/300 frames at 5.1-7.7ms vs 2.7 median, cadence frameN%30 (index.html:2648,1059-1066,1090-1093) |
+| PHYS-006 | physics | Comet-delivery bonus ignores whether the world can hold life | 1 | 1 | 1.00 | B8 | Opus | 15 min | index.html:907-909 (no DWARF or zone check) |
+| PHYS-008 | physics | Galaxies' core black holes below the tool's 3 M☉ minimum; toy-scale inspector units | 1 | 1 | 1.00 | B8 | Opus | 15-20 min | index.html:1241-1242,1496; inspector shows "Horizon 7.4km" |
+| CODE-013 | code | Misleading names and a stale comment | 1 | 1 | 1.00 | B12 | Light | 10-15 min | index.html:1142 (b.hz), 537 (T), 2057 vs 563 (local `pick` shadows global), 551-552 (stale comment) |
+| UX-104 | ux | Hint briefly ghosts over the inspector during its fade-out on phones | 1 | 1 | 1.00 | B4 | Light | 10 min | tests/output/phone-pixel-7-inspector.png; index.html:274 (`.top.inspecting ~ #hint{opacity:0}`), :318 (0.6s transition); tests/run_tests.py:235 (screenshot 600ms after tap) |
+| EFF-004 | efficiency | Long-run bench can't see likely growth sources (broader soak shows no leak) | 2 | 2 | 1.00 | B1 | Opus | 25-30 min | run_bench.py:63,92 (heap only after forced GC); long-run scene has no BH/supernova/throws/reloads; soak: heap flat, sprite cache ~80 keys |
+| EFF-005 | efficiency | Avoidable per-frame allocations: trail strokes/colours, sprite lookups, array filters | 2 | 2 | 1.00 | B7 | Opus | 30-35 min | drawTrail index.html:2066-2082 (largest JS self-time, 0.55ms medium/1.4ms large; batching measured large JS render 2.16→1.19ms); glowSprite per effect (2557); HB=bodies.filter per substep (797); lights filter per frame (2646); 3 rgba strings per body per frame (2080); GC measured only 0.02ms/frame so low priority (merged PERF-004) |
 
 ## In progress
 
-| ID | Area | Title | Impact | Effort | Priority | Tier | Est. time | Evidence | Started |
-|----|------|-------|--------|--------|----------|------|-----------|----------|---------|
+| ID | Area | Title | Impact | Effort | Priority | Batch | Tier | Est. time | Evidence | Started |
+|----|------|-------|--------|--------|----------|-------|------|-----------|----------|---------|
 
 ## Done
 

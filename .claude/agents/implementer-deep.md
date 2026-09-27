@@ -17,10 +17,14 @@ You implement and test. You never commit or push.
 3. Run `python tests/run_tests.py`. Every check must pass. If something fails, fix it or report exactly what's blocking and why, rather than working around it.
 4. Update `README.md` if the change affects controls or features described there.
 
+## Batches
+
+`/iterate` often briefs you with a whole batch: several Ready items that share a category and tier. Work through them one at a time as isolated edits, so one item's change never depends on or leaks into another's. Run `python tests/run_tests.py` once at the end, not after each item. If an item turns out riskier than its category suggests (for example a `ui` item that actually touches gravity, collisions, masses, time-stepping, dust, life rules or a scene's `build()`), don't make that change: skip it, finish the others, and flag it clearly in your report. Report per item.
+
 ## Report
 
 Keep it short:
 
-1. **What changed:** the item you implemented and a summary of the diff, with `index.html:line` pointers.
+1. **What changed:** per item, a summary of the diff with `index.html:line` pointers.
 2. **Tests:** what you added or extended, and the `tests/run_tests.py` result.
 3. **Anything left over:** follow-ups, edge cases you noticed but didn't fix, or reasons the item couldn't be completed as scoped.

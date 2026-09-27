@@ -56,7 +56,7 @@ Checked by `tests/invariants.js`.
 ### Workflow
 
 - **Audit:** `/audit` runs the benchmarks and invariant tests, sends six specialist agents over the whole game, and has `triage` update `BACKLOG.md`.
-- **Iterate:** `/iterate` takes the top **Ready** item in `BACKLOG.md` (or one you name) through the full pipeline: implement, test, benchmark, review, playtest, commit, push and republish.
+- **Iterate:** `/iterate` takes the next **batch** in `BACKLOG.md` (the one holding the top Ready item, or a batch or item you name) through the full pipeline once: implement, test, benchmark, review, playtest, commit, push and republish. `triage` groups Ready items into batches by category (`ui`, `tooling`, `sim`, `perf`, `solo`) and tier, so each batch gets the reviews it needs just once. See "Batches" in `docs/DEV_CYCLE.md`.
 - **Bench:** `python bench/run_bench.py` (run), `--compare` (against the baseline, fails on a regression over 5%) and `--baseline` (record a new baseline, and only when the numbers genuinely improved).
 - **A/B experiments:** when a backlog item is a big architectural choice (for example a quadtree versus a uniform grid, Canvas2D versus WebGL, or physics on the main thread versus a Worker), create two git worktrees, one per approach. Implement both minimally, benchmark each, keep the winner, and record both results in the item's **Done** entry.
 - **Unattended audits:** not set up. Luke chose not to run a nightly audit for now.
@@ -70,8 +70,8 @@ Checked by `tests/invariants.js`.
 - Opus is kept for the agents whose work needs deep reasoning, and the rest run on Sonnet to save usage (set 2026-09-27, implementer tiers added 2026-09-27):
   - Opus at high: `implementer-deep`. Used by `/iterate` for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
   - Opus at medium: `physics-reviewer`, `perf-profiler`, `implementer-opus`. The reviewers name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model. `implementer-opus` is used by `/iterate` for physics or perf area items, or anything at effort 2 or more.
-  - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`, `implementer`. `implementer` is used by `/iterate` for everything else (ux, design, efficiency or code items at effort 1).
-  - Sonnet at low: `efficiency-auditor`, `playtester`, `triage`.
+  - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`, `implementer`, `triage`. `implementer` is used by `/iterate` for everything else (ux, design, efficiency or code items at effort 1). `triage` was raised from low on 2026-09-28: at low, its first batch grouping broke its own rules (it mixed tiers in one batch and left effort-3 items out of `solo`).
+  - Sonnet at low: `efficiency-auditor`, `playtester`.
 - `/iterate` picks the implementer tier automatically per item (see its skill file); Luke can override it, for example "/iterate UX-005 on Opus". Deep-tier items already get Opus at high effort during implementation, so they don't also need a separate high-effort physics pass from the main session.
 - Run `/audit` rarely, since it's the most expensive command. Work the existing backlog down with `/iterate` first.
 
