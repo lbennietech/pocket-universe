@@ -6,15 +6,21 @@ How work flows from "what should we improve?" to a change that's live on GitHub 
 
 ## The backlog
 
-`BACKLOG.md` holds every known improvement, in four sections: **Ready**, **In progress**, **Done** and **Rejected**. Each Ready item has an ID (such as `PERF-002`), an area, impact and effort scores from 1 to 5, a priority (impact ÷ effort) and evidence (a metric, a screenshot or a `file:line`). The Ready table is sorted by priority, so the top row is the best value for the effort.
+`BACKLOG.md` holds every known improvement, in four sections: **Ready**, **In progress**, **Done** and **Rejected**. Each Ready item has an ID (such as `PERF-002`), an area, impact and effort scores from 1 to 5, a priority (impact ÷ effort), a **Tier** and **Est. time** (below), and evidence (a metric, a screenshot or a `file:line`). The Ready table is sorted by priority, so the top row is the best value for the effort.
 
 To see the list, open `BACKLOG.md` (VS Code and GitHub render the table), ask Claude ("show the top 10 Ready items"), or print the Ready rows from the terminal:
 
 ```
-python -c "s=open('BACKLOG.md',encoding='utf-8').read().split('## Ready')[1].split('## In progress')[0]; [print(' | '.join(c.strip() for c in l.split('|')[1:7])) for l in s.splitlines() if l.startswith('| ') and not l.startswith('| ID')]"
+python -c "s=open('BACKLOG.md',encoding='utf-8').read().split('## Ready')[1].split('## In progress')[0]; [print(' | '.join(c.strip() for c in l.split('|')[1:10])) for l in s.splitlines() if l.startswith('| ') and not l.startswith('| ID')]"
 ```
 
 In a Claude Code session, prefix it with `!` to run it without using model tokens.
+
+### Tier and Est. time (added 2026-09-28)
+
+Every Ready row carries the **Tier** that `/iterate` would delegate it to and a rough **Est. time** for the whole pipeline (implement, test, review, ship — not just the coding). The `triage` agent fills these in for new items using the same rule `/iterate` uses to pick an implementer (see "Model & effort" in `CLAUDE.md`): Deep for the integrator, time-stepping, collisions/merges, determinism, spatial structures, threading or A/B experiments; Opus for a physics or perf area item or anything at effort 2+; Light for everything else at effort 1. These are planning estimates, not measurements, calibrated loosely against actual runs logged in the Done table (see below) — treat them as a rough guide to what to expect, not a commitment.
+
+When an item moves to **Done**, its row also carries its **Tier** and an **Actual time** — a rough wall-clock figure for the whole run, including any regression-fix rounds or benchmark troubleshooting, not just the implementer agent's own working time. Batched items (see "Batching small items" below) record the batch's combined actual time once, on the item that carries the shared commit note, with the other items in the batch pointing to it.
 
 ## `/audit`: find what to improve
 
@@ -53,6 +59,15 @@ Running `/iterate` over and over works down the list in priority order, which is
 - **By dependencies.** Some items build on others. Do the foundation first (for example, the "share this universe" link before a snapshot link that extends it).
 - **Fixes before features.** Something broken for players, like a wrong number or a hidden label, usually beats a new toy.
 - **Ask.** "What should I iterate next if I care about phones?" is cheap, and Claude will recommend IDs from the backlog.
+
+## Batching small items (added 2026-09-28)
+
+Several independent Ready items that are all Light tier (or all the same tier) and don't touch the simulation (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scene `build()` logic) can be implemented, tested and reviewed together in one pass instead of one `/iterate` cycle each. This cuts most of the per-item overhead: one `python tests/run_tests.py` run, one `/code-review`, one `playtester` pass, instead of one of each per item.
+
+- **Only batch genuinely independent items.** Don't mix an item that needs a physics review with ones that don't — that forces every item in the batch through a review it doesn't need. Don't batch items likely to touch the same lines of `index.html` in conflicting ways.
+- **One implementer agent for the whole batch**, briefed with every item's row and proposal, working through them one at a time as isolated edits. Never run two implementer agents on the batch in parallel in the same working tree — they'd clobber each other's uncommitted edits with no git worktree isolation between them.
+- **Still one commit per item when the diff allows it**, but when the changes are too interleaved to split safely (the common case for a same-file batch), one commit covering the whole batch is fine — list every ID in the commit message, and give each item its own Done row pointing at that shared commit, with the actual time recorded once (see "Tier and Est. time" above).
+- The rest of the pipeline (test, bench, review, triage, ratchet, finish) runs exactly once for the whole batch, same as a single-item `/iterate` run.
 
 ## Supporting commands
 

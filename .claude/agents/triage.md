@@ -23,6 +23,11 @@ You maintain `BACKLOG.md` for Pocket Universe. You receive findings from other a
 5. **Preserve status.** Never delete or reorder items in "In progress", "Done" or "Rejected / won't do". If a new finding matches an existing Ready item, update that item's evidence instead of adding a duplicate. If it matches a Done item, it's a regression: add it as new with a note.
 6. **IDs:** keep the agent's area prefix; number new items after the highest existing number for that prefix (for example `PERF-004`).
 7. **Write** the Ready table sorted by priority (highest first), update the `_Last audit:` date, and keep each row to one line. Put long evidence in the Evidence column as a short pointer (file:line, metric, screenshot name).
+8. **Tier and Est. time (added 2026-09-28):** every Ready row gets a **Tier** and an **Est. time**, following the same rule `/iterate` uses to pick an implementer (see "Model & effort" in `CLAUDE.md`):
+   - **Deep**: the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
+   - **Opus**: a physics or perf area item, or anything at effort 2 or more.
+   - **Light**: everything else (ux/design/efficiency/code at effort 1).
+   Estimate the time as a rough range for the whole `/iterate` pipeline (implement, test, review, ship), not just the coding: Light effort-1 items are usually 10-20 min; Opus effort-1 items 15-25 min (add a few minutes if it also needs a physics review); Opus effort-2 items 20-35 min; Opus effort-3 or Deep items 35-90+ min depending on scope. These are rough planning estimates, not measurements — say so if asked, and don't spend time trying to make them precise.
 
 ## BACKLOG.md layout
 
@@ -33,15 +38,18 @@ _Last audit: YYYY-MM-DD_
 
 ## Ready (sorted by priority)
 
-| ID | Area | Title | Impact | Effort | Priority | Evidence |
-|----|------|-------|--------|--------|----------|----------|
+| ID | Area | Title | Impact | Effort | Priority | Tier | Est. time | Evidence |
+|----|------|-------|--------|--------|----------|------|-----------|----------|
 
 ## In progress
 
+| ID | Area | Title | Impact | Effort | Priority | Tier | Est. time | Evidence | Started |
+|----|------|-------|--------|--------|----------|------|-----------|----------|---------|
+
 ## Done
 
-| ID | Title | Result (metric delta / notes) | Commit |
-|----|-------|-------------------------------|--------|
+| ID | Title | Tier | Actual time | Result (metric delta / notes) | Commit |
+|----|-------|------|-------------|-------------------------------|--------|
 
 ## Rejected / won't do
 

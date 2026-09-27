@@ -11,14 +11,14 @@ Wraps the pre-push routine in `CLAUDE.md` and extends it with the backlog and th
 ## 1. Pick the item and its tier
 
 - Use the ID in `$ARGUMENTS` if given, else the top row of **Ready** in `BACKLOG.md`.
-- Move it to **In progress** (keep its row, add today's date).
+- Move it to **In progress**, keeping its **Tier** and **Est. time** columns as they already are in `BACKLOG.md`, and add today's date.
 - If it's a big architectural choice (for example a spatial structure, WebGL, a Worker), follow the A/B worktree convention in `CLAUDE.md` instead of picking one approach up front.
-- Choose which `implementer` agent does the work:
+- Choose which `implementer` agent does the work (this should already match the item's **Tier** column in `BACKLOG.md`; if it doesn't, or the item is new and has no Tier yet, apply this rule and record it):
   - **Deep** (`implementer-deep`, Opus at high effort): the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
   - **Opus** (`implementer-opus`, Opus at medium effort): a physics or perf area item, or anything with effort 2 or more.
   - **Light** (`implementer`, Sonnet at medium effort): everything else — ux, design, efficiency or code items at effort 1.
   - Luke can override the tier, for example "/iterate UX-005 on Opus".
-  - Say which tier was chosen and why before delegating.
+  - Say which tier was chosen and why before delegating, and mention the item's **Est. time**.
 
 ## 2. Implement
 
@@ -47,8 +47,8 @@ If the benchmarks improved and nothing regressed, update the baseline with `pyth
 
 ## 7. Finish
 
-- Move the item to **Done** with its result (the metric delta, or what changed for the player) and the commit hash.
+- Move the item to **Done**, keeping its **Tier** column and adding an **Actual time** (a rough wall-clock estimate for the whole run, including any fix rounds or troubleshooting — not just the implementer's own time), its result (the metric delta, or what changed for the player), and the commit hash.
 - Update `README.md` if controls or features changed.
 - Commit (authored as Luke Bennie, per `CLAUDE.md`), then `git push`. The push hook reruns the tests and the benchmark comparison.
 - Run `python tools/build_artifact.py` and republish `pocket-universe.html` to the claude.ai artifact.
-- Tell Luke what shipped, the numbers, and what's next on the backlog.
+- Tell Luke what shipped, the numbers (including Tier and Actual vs. Est. time), and what's next on the backlog.
