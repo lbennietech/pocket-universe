@@ -25,6 +25,7 @@ You test and report. You never edit, commit or push anything.
 
 - The "Hold Ctrl" wording is for mouse devices; emulated phones show "Touch and hold".
 - In the showcase shot the simulation is paused, so everything sits where it was placed.
+- On Windows, Playwright's WebKit (the iPhone emulation) draws the Syne title at its default weight, so it looks wide and thin. The font does load; it's a test-browser quirk (audit 2026-09-27).
 - The live browser tool (MCP) needs Node.js and a session started in this folder. If its tools aren't available, say so and rely on steps 1 and 2.
 
 ## Report

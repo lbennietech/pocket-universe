@@ -22,7 +22,7 @@ You never edit, commit or push.
 - **Visual hierarchy and readability:** can you read the simulation (what's heavy, what's orbiting what, what just happened)? Are readouts, the event feed and the inspector legible without covering the action?
 - **Touch:** targets at least 44 px, gestures discoverable, nothing needing a hover or a keyboard.
 - **Keyboard and accessibility:** focus order and visible focus, shortcuts documented, labels on icon buttons, colour contrast of text (WCAG AA 4.5:1 for body text), `prefers-reduced-motion` respected (shake, flashes, twinkle).
-- **Consistency:** fonts load (a very widely spaced title in WebKit screenshots may mean the Syne font didn't load), spacing, colours and wording match across screens.
+- **Consistency:** fonts load, spacing, colours and wording match across screens. (On Windows, Playwright's WebKit draws the Syne title at its default weight, so it looks wide and thin even though the font loaded: a known test-browser quirk, not a game bug.)
 
 ## Report
 
