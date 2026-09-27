@@ -1,37 +1,25 @@
 # Backlog
 
-_Last audit: 2026-09-27_
+_Last audit: 2026-09-28_
 
 ## Ready (sorted by priority)
 
 | ID | Area | Title | Impact | Effort | Priority | Evidence |
 |----|------|-------|--------|--------|----------|----------|
 | PERF-003 | perf | Phone bench underestimates real phones ~1.7×; nothing above default speed | 4 | 1 | 4.00 | bench/run_bench.py:44,131; 412×915 dsf2.625 measured 123-139ms vs 75-89 |
-| EFF-001 | efficiency | Web fonts download 3.5× more than the game itself | 4 | 1 | 4.00 | index.html:24; 123.8KB woff2+11.4KB CSS vs 35.2KB game |
 | DESIGN-004 | design | "Go supernova" button in inspector for heavy stars | 4 | 1 | 4.00 | index.html:947,1943-1946; stars sit at 100 M☉ forever |
 | PHYS-002 | physics | Supernova ejecta below escape speed falls back; big remnants leave no nebula | 3 | 1 | 3.00 | index.html:1009-1013; 384/520 survive at 11 M☉ vs 0/520 at 110 M☉ |
 | CODE-006 | code | Inspector shows stale/zero flux for new bodies and while paused | 3 | 1 | 3.00 | index.html:699,1135,1955; new planet shows ~9K "Too cold" |
-| CODE-004 | code | Determinism check ignores dust despite its own comment | 3 | 1 | 3.00 | tests/invariants.js:39-41 |
-| UX-002 | ux | Help right after scene load shows the scene blurb twice | 3 | 1 | 3.00 | scratch\ux\desktop-help.png; index.html:1417,1830 |
-| UX-006 | ux | Auto-orbit loses its label and is stranded on its own dock row on phones | 3 | 1 | 3.00 | tests/output/phone-pixel-7.png, phone-iphone-13.png; index.html:325; scratch\playtest\shots\phone-01-arrival.png, phone-01-sun-planet-autoorbit.png (merged UX-102) |
-| CODE-001 | code | build_artifact.py drops first `<style>` block and ships avoidable bloat; nothing checks the copy is current | 3 | 1 | 3.00 | tools/build_artifact.py:29 slices before index.html:17-21; test hook 398B; stripping comments/indentation saves ~6KB gz (35.9→29.9KB) (merged EFF-003) |
 | DESIGN-011 | design | Galaxies (first scene) slow to pay off, loses its tails | 3 | 1 | 3.00 | scratch\play\gal-20.png, gal-40.png, galaxies-60s.png; dust 2,900→1,552 by 60s |
 | DESIGN-009 | design | Undo the last throw | 3 | 1 | 3.00 | scratch\play\free-bh-8.png; mis-aimed 30 M☉ black hole wiped a system in ~12s |
-| DESIGN-006 | design | Each calm scene's blurb ends with one dare | 3 | 1 | 3.00 | index.html:1236-1392; Binary/Figure eight/Cradle: no events in 60s at default speed |
 | PERF-001 | perf | Dust drawn as 8,000 anti-aliased round-capped strokes is ~85% of every frame | 5 | 2 | 2.50 | index.html:2181,2190-2197; medium 15.2→2.3ms removing drawTracers |
 | DESIGN-001 | design | "Share this universe" link (scene + seed in URL) | 5 | 2 | 2.50 | index.html:553; no location/URLSearchParams/localStorage use; Mayhem varies a lot by seed |
 | CODE-007 | code | Frame time not clamped below zero | 2 | 1 | 2.00 | index.html:2608,2612 (Math.min(50,...) with no lower bound) |
 | PHYS-004 | physics | Merged planets keep their old look and name | 2 | 1 | 2.00 | index.html:677,923; merged brown dwarfs keep planet style ("Rocky world" at several M♃) |
 | PHYS-005 | physics | Stars below ~0.14 M☉ have HZ inside the star; L/T laws off at extremes | 2 | 1 | 2.00 | index.html:686,1940-1947; 0.08 M☉ HZ 2.3-3.7 units vs contact 9.0 |
 | CODE-010 | code | Momentum zeroing written four ways; Binary scene skips it, drifts | 2 | 1 | 2.00 | index.html:1264-1266,1308-1320,1366-1380,1284; binary none; COM speed 0.006-0.011 units, drift 0.5-0.9 AU/100yr seeds 1-5 (merged PHYS-007) |
-| UX-004 | ux | Hint jumps over the scene picker when the inspector opens on phones | 2 | 1 | 2.00 | tests/output/phone-pixel-7-inspector.png; index.html:1823 |
-| UX-007 | ux | Follow glows gold (tool colour) though it's a setting | 2 | 1 | 2.00 | tests/output/phone-pixel-7-inspector.png; index.html:372 |
-| UX-008 | ux | Speed readout is a hidden reset button | 2 | 1 | 2.00 | index.html:432 (title attribute only) |
-| UX-101 | ux | Habitable-zone labels can draw under the readout HUD on phones | 2 | 1 | 2.00 | scratch\playtest\shots\zoom-zone-label-check.png vs zoom-zone-label-check-desktop.png |
 | CODE-011 | code | Repeated magic predicates, palette indices and zoom limits | 2 | 1 | 2.00 | index.html:797,1109,2636 (heavy-body test); 501,1167,2196 (probe colour); 1413,1475,1724 (zoom clamp) |
-| CODE-012 | code | Test/bench runners crash with raw tracebacks when Playwright/browser missing | 2 | 1 | 2.00 | tests/run_tests.py:27,256,146; bench/run_bench.py:29 (unguarded imports/launch) |
 | PERF-007 | perf | Formation's opening seconds cost ~2x per frame at its new starting rate | 2 | 1 | 2.00 | index.html:1305,2636-2642; desktop 2.6/1.2ms (rate4) vs 5.8/5.1ms (rate60); phone profile 12.9/8.6ms vs 26.7/23.6ms; per PERF-003 real phones ~1.7x slower, opening frames could hit ~40-45ms for ~10-20s until mergers (280→81 bodies by sim time 1000) |
-| DESIGN-012 | design | Cradle/Formation blurbs still tell the player to turn the speed up | 2 | 1 | 2.00 | index.html:1249 ("Slide the speed up...") and 1306 ("Turn the speed up...") vs new default rate 60 (DESIGN-002) |
 | UX-001 | ux | On phones panels leave less than half the screen for the sky | 4 | 2 | 2.00 | scratch\ux\pixel-mayhem-8s.png; tests/output/phone-iphone-13.png; index.html:1858 |
 | DESIGN-003 | design | Click an event in the feed to fly the camera to it | 4 | 2 | 2.00 | index.html:1843,1856; scratch\play\mayhem-10s.png |
 | PHYS-001 | physics | Formation scene makes brown dwarfs, not habitable planets; life stuck at Jupiter mass | 4 | 2 | 2.00 | index.html:1309-1319 (disk 0.13 M☉), seeds 1-3 largest body 61.6-72.5 M♃ by 50yr, 0 living worlds after 300yr; LIFE_MIN=10 units≈0.87 M♃ (index.html:460); rocky look only below 2 units (660-664) (merged DESIGN-005) |
@@ -50,9 +38,8 @@ _Last audit: 2026-09-27_
 | PERF-005 | perf | cull()→mainGroup() is O(n²): a 3-5ms hitch every 30 frames on 1,000 bodies | 2 | 2 | 1.00 | large: 10/300 frames at 5.1-7.7ms vs 2.7 median, cadence frameN%30 (index.html:2648,1059-1066,1090-1093) |
 | PHYS-006 | physics | Comet-delivery bonus ignores whether the world can hold life | 1 | 1 | 1.00 | index.html:907-909 (no DWARF or zone check) |
 | PHYS-008 | physics | Galaxies' core black holes below the tool's 3 M☉ minimum; toy-scale inspector units | 1 | 1 | 1.00 | index.html:1241-1242,1496; inspector shows "Horizon 7.4km" |
-| UX-009 | ux | Tablet dock: stray separator at the end of the first row | 1 | 1 | 1.00 | scratch\ux\tablet-820x1180.png; index.html:302 (.sep hidden only ≤720px) |
-| UX-103 | ux | "Nothing here yet" blurb stays up after you've placed things | 1 | 1 | 1.00 | scratch\playtest\shots\desktop-01-sun-planet-autoorbit.png, phone-01-sun-planet-autoorbit.png; index.html:1389,1857 |
 | CODE-013 | code | Misleading names and a stale comment | 1 | 1 | 1.00 | index.html:1142 (b.hz), 537 (T), 2057 vs 563 (local `pick` shadows global), 551-552 (stale comment) |
+| UX-104 | ux | Hint briefly ghosts over the inspector during its fade-out on phones | 1 | 1 | 1.00 | tests/output/phone-pixel-7-inspector.png; index.html:274 (`.top.inspecting ~ #hint{opacity:0}`), :318 (0.6s transition); tests/run_tests.py:235 (screenshot 600ms after tap) |
 | EFF-004 | efficiency | Long-run bench can't see likely growth sources (broader soak shows no leak) | 2 | 2 | 1.00 | run_bench.py:63,92 (heap only after forced GC); long-run scene has no BH/supernova/throws/reloads; soak: heap flat, sprite cache ~80 keys |
 | EFF-005 | efficiency | Avoidable per-frame allocations: trail strokes/colours, sprite lookups, array filters | 2 | 2 | 1.00 | drawTrail index.html:2066-2082 (largest JS self-time, 0.55ms medium/1.4ms large; batching measured large JS render 2.16→1.19ms); glowSprite per effect (2557); HB=bodies.filter per substep (797); lights filter per frame (2646); 3 rgba strings per body per frame (2080); GC measured only 0.02ms/frame so low priority (merged PERF-004) |
 
@@ -62,6 +49,20 @@ _Last audit: 2026-09-27_
 
 | ID | Title | Result (metric delta / notes) | Commit |
 |----|-------|-------------------------------|--------|
+| EFF-001 | Web fonts download 3.5× more than the game itself | Dropped the unused Syne 700 weight from the Google Fonts URL (only 800 is referenced in CSS). Part of a 14-item batch; see CODE-001 for the shared commit note. | (pending push) |
+| CODE-004 | Determinism check ignores dust despite its own comment | `stateHash()` now folds every dust particle's x/y/vx/vy into the hash via a new `dustState` test-hook getter, not just the count. | (pending push) |
+| UX-002 | Help right after scene load shows the scene blurb twice | The scene-load blurb push now uses the same `'blurb'` dedup key/1500ms gap as `showHelp()`, so pressing Help right after a scene loads no longer double-prints it. | (pending push) |
+| UX-006 | Auto-orbit loses its label and is stranded on its own dock row on phones | Added a compact "Orbit" label (`.lbl-short`) shown only at ≤480px, replacing the old `display:none` that dropped the label entirely. | (pending push) |
+| CODE-001 | build_artifact.py drops first `<style>` block and ships avoidable bloat; nothing checks the copy is current | Fixed the slice to start at the first `<style>` tag; added CSS comment/indentation stripping; added a sha256 stamp so reruns skip rewriting when index.html hasn't changed. Shipped together with the other 13 items below as one batch (implemented, tested and reviewed together to save pipeline overhead on independent, non-simulation-touching fixes) — commit covers EFF-001, CODE-004, UX-002, UX-006, DESIGN-006, UX-004, UX-007, UX-008, UX-101, CODE-012, DESIGN-012, UX-009, UX-103 as well. 148/148 tests pass; code review and playtester both clean (one new minor finding, UX-104, sent to backlog). | (pending push) |
+| DESIGN-006 | Each calm scene's blurb ends with one dare | Added a one-line dare to Cradle, Figure eight and Binary's blurbs. | (pending push) |
+| UX-004 | Hint jumps over the scene picker when the inspector opens on phones | `placeHint()` now leaves the hint's position alone while the inspector is open (it's hidden by CSS in that state anyway), instead of measuring a hidden element and mispositioning it. | (pending push) |
+| UX-007 | Follow glows gold (tool colour) though it's a setting | Added the `toggle` class to the Follow button so it uses the neutral blue toggle style shared with Trails/Warp/Zones. | (pending push) |
+| UX-008 | Speed readout is a hidden reset button | Added a dashed underline that turns gold on hover/focus, so the reset-to-default control reads as clickable. Click behaviour unchanged. | (pending push) |
+| UX-101 | Habitable-zone labels can draw under the readout HUD on phones | Cached the readout's bottom edge (`hudBottom`, recomputed on resize) and clamp the zone label's Y position against it in `drawZones()`. | (pending push) |
+| CODE-012 | Test/bench runners crash with raw tracebacks when Playwright/browser missing | Wrapped the Playwright imports and launch calls in both runners with a short, clear error message instead of a raw traceback. | (pending push) |
+| DESIGN-012 | Cradle/Formation blurbs still tell the player to turn the speed up | Reworded both blurbs ("Already running fast: ...") to match the rate-60 starting pace from DESIGN-002. | (pending push) |
+| UX-009 | Tablet dock: stray separator at the end of the first row | Moved `.sep{display:none}` into a new ≤1024px breakpoint so it's also hidden at tablet widths, not just ≤720px. | (pending push) |
+| UX-103 | "Nothing here yet" blurb stays up after you've placed things | Reused the `spawned` flag (now correctly reset per scene load) so `showHelp()` skips re-pushing Empty space's blurb once something's been placed. | (pending push) |
 | PERF-002 | Parallax star tile bilinearly resampled every frame | The star-tile parallax draw now sets `imageSmoothingEnabled = false` around its `drawImage` calls (restored to `true` right after, so sprites/gradients are unaffected). 139/139 tests pass; playtester confirmed no visual regression. The original 64.0→37.1ms claim wasn't reproduced in headless Chromium bench (measured no meaningful difference there, ~53-66ms either way) — the benefit needs checking on a real phone or a dpr-2 profile before treating it as proven. Benchmark baseline was re-recorded a third time this session (bench/baseline.json) after confirming via a stash/pop A/B test that this machine has genuinely slowed down over the session (unrelated to any code change); Luke was informed and chose to re-baseline. | ae4cd7e |
 | DESIGN-002 | Per-scene starting speed so Cradle/Formation pay off in seconds | Cradle/Formation now start the speed slider at rate 60 instead of RATE_DEFAULT (4), so their first payoff shows within seconds instead of ~162s; restart preserves a manually-set rate (loadScene(key, isRestart)); other scenes unaffected. 136/136 tests pass. Benchmark baseline was also re-recorded separately (commit f97f29c) after run-to-run machine noise (unrelated to this change) was flagging false regressions against the first baseline sample. | 44c05f8 |
 

@@ -26,7 +26,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import sync_playwright
+except ImportError:
+    sys.exit("Playwright isn't installed. Run: pip install playwright && python -m playwright install chromium")
 
 ROOT = Path(__file__).resolve().parent.parent
 BENCH = ROOT / "bench"
@@ -114,7 +118,10 @@ def run(selected, quick):
     init = "window.__PU_TEST__ = true;\n" + (BENCH / "scenes.js").read_text(encoding="utf-8")
     out = {"scenes": {}}
     with sync_playwright() as pw:
-        browser = pw.chromium.launch()
+        try:
+            browser = pw.chromium.launch()
+        except PlaywrightError:
+            sys.exit("Chromium isn't installed for Playwright. Run: python -m playwright install chromium")
         page = browser.new_page(viewport={"width": 1280, "height": 800})
         page.add_init_script(init)
         page.goto((ROOT / "index.html").as_uri())

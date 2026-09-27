@@ -24,7 +24,11 @@ import json
 import sys
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import sync_playwright
+except ImportError:
+    sys.exit("Playwright isn't installed. Run: pip install playwright && python -m playwright install chromium firefox webkit")
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS = ROOT / "tests"
@@ -47,6 +51,15 @@ INIT = "window.__PU_TEST__ = true;\n" + (ROOT / "bench" / "scenes.js").read_text
 HARNESS = (TESTS / "harness.js").read_text(encoding="utf-8")
 SCREEN_POS = """(pred) => { const b = window.__pu.bodies.find(pred ? new Function('o', 'return ' + pred) : () => true),
     c = window.__pu.cam; return [(b.x - c.x) * c.z + innerWidth / 2, (b.y - c.y) * c.z + innerHeight / 2]; }"""
+
+
+def launch(pw, engine):
+    """getattr(pw, engine).launch(), with a clear short error if that browser
+    hasn't been installed, instead of a raw Playwright traceback."""
+    try:
+        return getattr(pw, engine).launch()
+    except PlaywrightError:
+        sys.exit(f"{engine.capitalize()} isn't installed for Playwright. Run: python -m playwright install {engine}")
 
 
 class Results:
@@ -143,7 +156,7 @@ def real_mouse_checks(browser, name, res):
 
 def phone_checks(pw, device, engine, res):
     errors = []
-    browser = getattr(pw, engine).launch()
+    browser = launch(pw, engine)
     context, page = open_page(browser, errors, **pw.devices[device])
     tag = f"[{device}]"
     page.clock.run_for(500)
@@ -196,7 +209,7 @@ def screenshots(pw):
     OUT.mkdir(exist_ok=True)
     for old in OUT.glob("*.png"):
         old.unlink()
-    browser = pw.chromium.launch()
+    browser = launch(pw, 'chromium')
     for name, query in DESKTOP_SHOTS:
         errors = []
         context, page = open_page(browser, errors, PAGE + "?mode=visual&" + query, viewport=DESKTOP)
@@ -208,7 +221,7 @@ def screenshots(pw):
         context.close()
     browser.close()
     for device, engine in PHONES:
-        browser = getattr(pw, engine).launch()
+        browser = launch(pw, engine)
         errors = []
         context, page = open_page(browser, errors, **pw.devices[device])
         page.clock.run_for(2500)
@@ -229,7 +242,7 @@ def screenshots(pw):
 
 def quick(pw, res):
     errors = []
-    browser = pw.chromium.launch()
+    browser = launch(pw, 'chromium')
     context, page = open_page(browser, errors, viewport=DESKTOP)
     page.clock.run_for(1500)
     ran = page.evaluate("() => { window.__pu.tick(30); return window.__pu.simTime > 0; }")
@@ -253,7 +266,7 @@ def main():
             quick(pw, res)
         else:
             for engine in engines:
-                browser = getattr(pw, engine).launch()
+                browser = launch(pw, engine)
                 harness_checks(browser, engine, res)
                 real_mouse_checks(browser, engine, res)
                 if engine == "chromium":

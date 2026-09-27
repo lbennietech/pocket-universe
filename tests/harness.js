@@ -217,6 +217,31 @@
     $('help').click();
     check('? button shows the hint again', !$('hint').classList.contains('gone'), {});
 
+    // Pressing Help right after a scene loads must not show its blurb twice
+    // (the scene load already announced it in the feed)
+    loadScene('cradle');
+    await wait(50);
+    $('help').click();
+    const blurbLis = [...document.querySelectorAll('#feed li span')].filter(s => s.textContent.startsWith('A quiet Sun'));
+    check('help right after scene load does not duplicate the blurb', blurbLis.length === 1, { count: blurbLis.length });
+
+    // Once something has been placed in Empty space, its "nothing here yet"
+    // blurb shouldn't be repeated by Help
+    loadScene('empty');
+    await wait(50);
+    key('1');
+    pe('pointerdown', 500, 400, { ctrl: true });
+    pe('pointerup', 500, 400, { ctrl: true });
+    $('feed').innerHTML = '';
+    $('help').click();
+    const emptyBlurbLis = [...document.querySelectorAll('#feed li span')].filter(s => s.textContent.includes('Nothing here yet'));
+    check('empty-space blurb is not repeated once something is placed', emptyBlurbLis.length === 0, { count: emptyBlurbLis.length });
+
+    // The Follow toggle is a setting, not a tool: it should use the neutral
+    // toggle styling (like Trails/Warp/Zones), not the tool-selection gold
+    check('Follow toggle uses the neutral toggle style, not the tool gold',
+      $('cFollow').classList.contains('toggle'), { classes: $('cFollow').className });
+
     // A mouse-clicked button gives up focus, so Space pauses instead of pressing it again
     $('restart').focus();
     $('restart').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));

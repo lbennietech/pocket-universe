@@ -21,7 +21,7 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Syne:wght@700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Syne:wght@800&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -146,6 +146,7 @@
     transition: background-color 0.15s, border-color 0.15s;
   }
   .chip:hover { background: rgba(255, 255, 255, 0.07); }
+  .lbl-short { display: none; }
   .chip:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .chip[aria-pressed="true"] {
     background: rgba(244, 184, 96, 0.15);
@@ -183,7 +184,8 @@
     box-shadow: 0 0 0 3px rgba(244, 184, 96, 0.35), 0 0 10px rgba(244, 184, 96, 0.5);
   }
   .speed input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
-  #speedLabel { min-width: 10.5ch; justify-content: center; }
+  #speedLabel { min-width: 10.5ch; justify-content: center; border-bottom: 1px dashed var(--edge); border-radius: 0; }
+  #speedLabel:hover, #speedLabel:focus-visible { color: var(--gold); border-color: var(--gold); }
 
   .glyph { width: 12px; height: 12px; border-radius: 50%; flex: none; display: inline-block; }
   .g-planet { background: radial-gradient(circle at 34% 32%, #cfe6ff, #6f93b4 55%, #1d2a3a); }
@@ -296,8 +298,12 @@
     .dock { grid-column: 1 / -1; grid-row: 2; justify-self: center; }
     .scale { grid-column: 2; }
   }
-  @media (max-width: 720px) {
+  @media (max-width: 1024px) {
+    /* the dock wraps onto more than one row below this width (tablets
+       included), where a fixed separator can end up stranded at a wrap */
     .sep { display: none; }
+  }
+  @media (max-width: 720px) {
     .dock { gap: 2px 4px; }
   }
   @media (max-width: 600px) {
@@ -323,6 +329,7 @@
     #feed li { font-size: 11px; }
     #hint { top: 168px; font-size: 13px; }
     #assist .lbl { display: none; }
+    #assist .lbl-short { display: inline; }
     .mark { font-size: 18px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -369,7 +376,7 @@
         <header>
           <span class="glyph g-planet" id="cGlyph"></span>
           <h2 id="cTitle">Planet</h2>
-          <button class="chip mini" id="cFollow" aria-pressed="true" title="Keep the camera on this object (F)">Follow</button>
+          <button class="chip mini toggle" id="cFollow" aria-pressed="true" title="Keep the camera on this object (F)">Follow</button>
           <button class="chip mini icon" id="cClose" aria-label="Close inspector" title="Close (Esc)">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
           </button>
@@ -393,7 +400,7 @@
         <button class="chip" data-tool="bh" aria-pressed="false" title="Black hole (4)"><span class="glyph g-bh"></span>Black hole</button>
         <button class="chip" data-tool="dust" aria-pressed="false" title="Dust cloud (5)"><span class="glyph g-dust"></span>Dust</button>
         <button class="chip toggle" id="assist" aria-label="Auto-orbit" aria-pressed="false" title="Throw into a perfect circular orbit (O, or hold Shift while throwing)">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="8" cy="8" rx="6.5" ry="3.6" transform="rotate(-25 8 8)"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg><span class="lbl">Auto-orbit</span>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="8" cy="8" rx="6.5" ry="3.6" transform="rotate(-25 8 8)"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg><span class="lbl">Auto-orbit</span><span class="lbl-short">Orbit</span>
         </button>
       </div>
       <span class="sep"></span>
@@ -1246,7 +1253,7 @@
       fit: 430,
       zones: true,
       rate: 60,   // life normally takes ~162s at RATE_DEFAULT; start faster so it shows up in seconds
-      blurb: 'A quiet Sun with two worlds inside its habitable zone, shown in green. Slide the speed up, give them time and see if life takes hold. Tap a planet to watch it.',
+      blurb: 'A quiet Sun with two worlds inside its habitable zone, shown in green. Already running fast: give them time and see if life takes hold. Tap a planet to watch it. Or throw something heavy through the zone and see how fast paradise cools.',
       build() {
         bodies.push(makeBody(0, 0, 0, 0, MSUN, 'star'));
         bodies.push(orbitBody(MSUN, 0.45, 5, 'lava'));
@@ -1287,7 +1294,7 @@
     },
     eight: {
       fit: 380,
-      blurb: 'Three equal stars chasing each other around a figure eight. Cris Moore found this orbit in 1993; Chenciner and Montgomery proved it exists in 2000.',
+      blurb: 'Three equal stars chasing each other around a figure eight. Cris Moore found this orbit in 1993; Chenciner and Montgomery proved it exists in 2000. Nudge just one of them and watch the whole braid unravel.',
       build() {
         const L = 260, m = MSUN, V = Math.sqrt(m / L);
         const p = [0.97000436, -0.24308753], v3 = [-0.93240737, -0.86473146];
@@ -1303,7 +1310,7 @@
     formation: {
       fit: 1000,
       rate: 60,   // planetesimal collisions and life are slow at RATE_DEFAULT; start faster to pay off sooner
-      blurb: 'A young Sun inside a disk of rocky planetesimals. Collisions slowly build planets, and the ones that land in the habitable zone might grow life. Turn the speed up to watch it happen.',
+      blurb: 'A young Sun inside a disk of rocky planetesimals. Already running fast: collisions slowly build planets, and the ones that land in the habitable zone might grow life. Watch it happen.',
       build() {
         const sun = makeBody(0, 0, 0, 0, MSUN, 'star');
         bodies.push(sun);
@@ -1330,7 +1337,7 @@
     },
     binary: {
       fit: 1700,
-      blurb: 'Two stars orbit each other with four planets circling both, like Tatooine.',
+      blurb: 'Two stars orbit each other with four planets circling both, like Tatooine. Throw a third star in and see which pair survives.',
       build() {
         const m1 = 1.2 * MSUN, m2 = 0.8 * MSUN, Mt = m1 + m2, sep = 0.6 * AU;
         const vrel = Math.sqrt(Mt / sep);
@@ -1406,6 +1413,7 @@
     flash = 0;
     shake = 0;
     aim = null;
+    spawned = false;
     deselect();
     SCENES[key].build();
     accel();
@@ -1418,14 +1426,14 @@
     if (!isRestart) setRate(SCENES[key].rate || RATE_DEFAULT);
     feed.textContent = '';
     for (const k in lastEv) delete lastEv[k];
-    pushEvent(SCENES[key].blurb, 'info');
+    pushEvent(SCENES[key].blurb, 'info', 'blurb', 1500);
     updateHud();
   }
 
   // ---------------------------------------------------------------------------
   // Viewport, camera, backdrop
   // ---------------------------------------------------------------------------
-  let VW = 0, VH = 0, dpr = 1, backdrop = null;
+  let VW = 0, VH = 0, dpr = 1, backdrop = null, hudBottom = 0;
   const starTile = document.createElement('canvas');
   (function buildStarTile() {
     const S = 512;
@@ -1444,6 +1452,10 @@
   function resize() {
     VW = stage.clientWidth; VH = stage.clientHeight;
     dpr = Math.min(2, window.devicePixelRatio || 1);
+    // Cache how far down the readout HUD reaches, so drawZones() can keep its
+    // labels from landing underneath it (recomputed here, not per frame).
+    const readout = document.querySelector('.readout');
+    hudBottom = readout.getBoundingClientRect().bottom - stage.getBoundingClientRect().top;
     canvas.width = Math.round(VW * dpr);
     canvas.height = Math.round(VH * dpr);
     backdrop = document.createElement('canvas');
@@ -1823,7 +1835,11 @@
   // Where there's no room beside the title, the hint goes just under the
   // readout, measured, so a readout line that wraps can't run into it.
   function placeHint() {
-    if (VW > 1100) { hint.style.top = ''; return; }
+    // While the inspector is open on a narrow screen the brand (and its
+    // readout) are hidden, so measuring it would put the hint at the top of
+    // the stage, on top of the scene picker. The hint is hidden by CSS in
+    // that state anyway, so just leave its position alone.
+    if (VW > 1100 || topBar.classList.contains('inspecting')) { hint.style.top = ''; return; }
     hint.style.top = Math.round(document.querySelector('.brand').getBoundingClientRect().bottom - stage.getBoundingClientRect().top + 10) + 'px';
   }
   function showHelp() {
@@ -1831,7 +1847,9 @@
     hint.classList.remove('gone');
     clearTimeout(hintTimer);
     hintTimer = setTimeout(() => hint.classList.add('gone'), 12000);
-    pushEvent(SCENES[sceneKey].blurb, 'info', 'blurb', 1500);
+    // Empty space's blurb says there's nothing here yet; once something has
+    // been placed that's no longer true, so don't repeat it.
+    if (sceneKey !== 'empty' || !spawned) pushEvent(SCENES[sceneKey].blurb, 'info', 'blurb', 1500);
   }
   // Most people try a plain drag first. The first time that moves the view
   // before anything has been thrown, explain how to throw.
@@ -2158,7 +2176,10 @@
       if (ro - ri > 14) {
         ctx.fillStyle = 'rgba(127,224,176,0.8)';
         ctx.textAlign = 'center';
-        ctx.fillText('HABITABLE ZONE', X, Y - (ri + ro) / 2 + 3);
+        // Keep the label out from under the readout HUD, which sits on top
+        // of the canvas at the top of the screen (mainly a phone-width issue).
+        const labelY = Math.max(Y - (ri + ro) / 2 + 3, Math.min(Y + ro - 3, hudBottom + 12));
+        ctx.fillText('HABITABLE ZONE', X, labelY);
         ctx.textAlign = 'start';
       }
     }
@@ -2703,6 +2724,7 @@
       cam,
       get bodies() { return bodies; }, get aim() { return aim; }, get rate() { return rate; },
       get simTime() { return simTime; }, get dust() { return T.n; },
+      get dustState() { return { n: T.n, x: T.x.subarray(0, T.n), y: T.y.subarray(0, T.n), vx: T.vx.subarray(0, T.n), vy: T.vy.subarray(0, T.n) }; },
       get flash() { return flash; }, get shake() { return shake; },
       get selected() { return selected; }, get follow() { return follow; },
       aimMass: () => aim ? aimMass() : 0,

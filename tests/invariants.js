@@ -36,9 +36,11 @@
   }
   const finite = bodies => bodies.every(b => isFinite(b.x + b.y + b.vx + b.vy + b.m));
   function stateHash(P) {
-    // exact bits of every body's state, plus a sample of the dust
-    const parts = [P.bodies.length, P.dust, P.simTime];
+    // exact bits of every body's state, plus every dust (tracer) particle's state
+    const D = P.dustState;
+    const parts = [P.bodies.length, D.n, P.simTime];
     for (const b of P.bodies) parts.push(b.x, b.y, b.vx, b.vy, b.m);
+    for (let i = 0; i < D.n; i++) parts.push(D.x[i], D.y[i], D.vx[i], D.vy[i]);
     return parts.map(v => v.toString(36)).join(',');
   }
 
