@@ -6,7 +6,7 @@ A browser gravity sandbox by Luke Bennie. Everything in the game lives in `index
 
 - `index.html`: the game. Edit this one.
 - `tests/run_tests.py`: Playwright (Python) test runner. It plays the game in Chromium, Firefox and WebKit (Safari's engine) and on emulated phones, using scripted and real input, and runs the physics invariant tests. `--screens` also saves screenshots to `tests/output/` (gitignored), and `--quick` does a few-second load check. The checks themselves are `tests/harness.js` (in-page input checks) and `tests/invariants.js` (physics).
-- `bench/run_bench.py`: performance benchmarks on seeded scenes. `bench/baseline.json` is the committed baseline, and `bench/results/latest.json` holds the latest run (gitignored).
+- `bench/run_bench.py`: performance benchmarks on seeded scenes. Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`), to keep machine noise out of the comparison. `bench/baseline.json` is the committed baseline, and `bench/results/latest.json` holds the latest run (gitignored).
 - `tools/build_artifact.py`: rebuilds `pocket-universe.html`, the copy published as a private claude.ai artifact (https://claude.ai/artifact/QMJGjmuBKfrCHBa8WvXdK5). That file is ignored by git.
 - `tools/serve.py`: serves the game at http://localhost:8765/ for the Playwright browser tool (MCP) that agents use. It starts the server if it isn't running and waits until it's ready.
 - `.claude/agents/`: review and audit agents. `.claude/skills/`: `/audit` and `/iterate`. `.claude/hooks/` and `.claude/settings.json`: automatic checks. `.mcp.json`: the Playwright browser tool.
@@ -57,7 +57,7 @@ Checked by `tests/invariants.js`.
 
 - **Audit:** `/audit` runs the benchmarks and invariant tests, sends six specialist agents over the whole game, and has `triage` update `BACKLOG.md`.
 - **Iterate:** `/iterate` takes the next **batch** in `BACKLOG.md` (the one holding the top Ready item, or a batch or item you name) through the full pipeline once: implement, test, benchmark, review, playtest, commit, push and republish. `triage` groups Ready items into batches by category (`ui`, `tooling`, `sim`, `perf`, `solo`) and tier, so each batch gets the reviews it needs just once. See "Batches" in `docs/DEV_CYCLE.md`.
-- **Bench:** `python bench/run_bench.py` (run), `--compare` (against the baseline, fails on a regression over 5%) and `--baseline` (record a new baseline, and only when the numbers genuinely improved).
+- **Bench:** `python bench/run_bench.py` (run), `--compare` (against the baseline, fails on a regression over 5%) and `--baseline` (record a new baseline, only when the numbers genuinely improved or the measuring method changed). The baseline records how it was measured, and `--compare` refuses a baseline measured a different way.
 - **A/B experiments:** when a backlog item is a big architectural choice (for example a quadtree versus a uniform grid, Canvas2D versus WebGL, or physics on the main thread versus a Worker), create two git worktrees, one per approach. Implement both minimally, benchmark each, keep the winner, and record both results in the item's **Done** entry.
 - **Unattended audits:** not set up. Luke chose not to run a nightly audit for now.
 

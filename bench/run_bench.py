@@ -11,7 +11,21 @@ timing each one. Budgets live in CLAUDE.md under "Targets & design pillars".
     python bench/run_bench.py --compare       # run, then compare with bench/baseline.json
     python bench/run_bench.py --baseline      # run and save as the new baseline
     python bench/run_bench.py --compare --no-run   # compare the last run without re-running
-    options: --threshold 0.05  --scenes small,medium  --quick
+    options: --threshold 0.05  --scenes small,medium  --quick  --repeats N
+
+Each scene runs several times (REPEATS; long-run LONG_RUN_REPEATS), interleaved
+round-robin across the scenes so a machine that slows down mid-run affects
+every scene alike. Every metric, heap growth included, is the median across
+those runs, so a single lucky or unlucky run (a cold first round, a late
+garbage collection) can't set the result. The only exception is NaN/Infinity,
+where any run counts. The method is recorded in the results. --compare refuses
+to compare runs measured different ways, and --baseline only saves a full run
+measured the default way.
+
+Medians keep noise within one session out of the comparison. They can't remove
+drift between sessions (a laptop running cooler or hotter than when the
+baseline was recorded), so a failed --compare still needs a stash/pop A/B test
+before blaming the change.
 
 Needs: pip install playwright && python -m playwright install chromium
 Exit code 1 when --compare finds a regression over the threshold, or the
@@ -52,7 +66,23 @@ RUNS = {
 }
 # metrics compared against the baseline (lower is better)
 COMPARED = ("mean_ms", "p95_ms", "physics_ms", "render_ms")
-REPEATS = 3   # each timed scene runs this many times; the fastest run counts (less noise)
+REPEATS = 5            # runs per scene by default; each metric is the median across them
+LONG_RUN_REPEATS = 3   # long-run is slow (~9,000 steps), so it's capped at this many runs
+MEDIANED = ("mean_ms", "p95_ms", "max_ms", "physics_ms", "render_ms", "heap_growth_mb")
+
+
+def repeats_for(name, repeats):
+    return min(repeats, LONG_RUN_REPEATS) if name == "long-run" else repeats
+
+
+def method(repeats, quick):
+    """How a run was measured. Only runs measured the same way are compared."""
+    if quick:
+        return "quick: single run"
+    return f"median of {repeats} interleaved runs ({repeats_for('long-run', repeats)} for long-run)"
+
+
+DEFAULT_METHOD = method(REPEATS, False)
 
 
 def percentile(xs, q):
@@ -113,10 +143,22 @@ def measure(page, cdp, scene, frames, warm, rate, slow, seed=1):
     }
 
 
-def run(selected, quick):
+def combine(runs):
+    """One result from several runs of a scene: the median of every metric, but any NaN counts."""
+    by_growth = sorted(runs, key=lambda r: r["heap_growth_mb"])
+    out = dict(by_growth[len(by_growth) // 2])   # heap start/end come from the median-growth run
+    for m in MEDIANED:
+        out[m] = round(statistics.median(r[m] for r in runs), 3)
+    out["non_finite"] = max(r["non_finite"] for r in runs)
+    out["runs"] = len(runs)
+    return out
+
+
+def run(selected, quick, repeats):
     html = (ROOT / "index.html").read_bytes()
     init = "window.__PU_TEST__ = true;\n" + (BENCH / "scenes.js").read_text(encoding="utf-8")
     out = {"scenes": {}}
+    reps = {name: 1 if quick else repeats_for(name, repeats) for name in selected}
     with sync_playwright() as pw:
         try:
             browser = pw.chromium.launch()
@@ -128,22 +170,24 @@ def run(selected, quick):
         page.wait_for_function("() => window.__pu && window.__puBuild")
         cdp = page.context.new_cdp_session(page)
         cdp.send("HeapProfiler.enable")
+        runs = {name: [] for name in selected}
+        # round-robin: every scene gets one run per round, so slow-downs spread evenly
+        for i in range(max(reps.values())):
+            for name in selected:
+                if i >= reps[name]:
+                    continue
+                scene, frames, warm, rate, slow = RUNS[name]
+                if quick:
+                    frames = max(30, frames // 4)
+                runs[name].append(measure(page, cdp, scene, frames, warm, rate, slow))
         for name in selected:
-            scene, frames, warm, rate, slow = RUNS[name]
-            if quick:
-                frames = max(30, frames // 4)
-            repeats = 1 if name == "long-run" or quick else REPEATS
-            best = None
-            for _ in range(repeats):
-                r = measure(page, cdp, scene, frames, warm, rate, slow)
-                if best is None or r["mean_ms"] < best["mean_ms"]:
-                    best = r
-            best["rate"], best["cpu_slowdown"] = rate, slow
-            out["scenes"][name] = best
-            print(f"{name:18} mean {best['mean_ms']:7.2f} ms  p95 {best['p95_ms']:7.2f}  "
-                  f"physics {best['physics_ms']:6.2f}  render {best['render_ms']:6.2f}  "
-                  f"heap {best['heap_growth_mb']:+.2f} MB  bodies {best['bodies_end']}")
-        out["meta"] = {"browser": "chromium " + browser.version}
+            r = combine(runs[name])
+            r["rate"], r["cpu_slowdown"] = RUNS[name][3], RUNS[name][4]
+            out["scenes"][name] = r
+            print(f"{name:18} mean {r['mean_ms']:7.2f} ms  p95 {r['p95_ms']:7.2f}  "
+                  f"physics {r['physics_ms']:6.2f}  render {r['render_ms']:6.2f}  "
+                  f"heap {r['heap_growth_mb']:+.2f} MB  bodies {r['bodies_end']}  ({r['runs']} runs)")
+        out["meta"] = {"browser": "chromium " + browser.version, "method": method(repeats, quick)}
         browser.close()
     out["size"] = {"index_html_kb": round(len(html) / 1024, 1),
                    "index_html_gzip_kb": round(len(gzip.compress(html, 9)) / 1024, 1)}
@@ -193,6 +237,16 @@ def compare(res, threshold):
         print("\nNo bench/baseline.json yet: run with --baseline first.")
         return False
     base = json.loads(BASELINE.read_text(encoding="utf-8"))
+    base_method = base["meta"].get("method", "fastest of 3 runs (before 2026-09-28)")
+    run_method = res["meta"].get("method", "fastest of 3 runs (before 2026-09-28)")
+    if base_method != run_method:
+        if run_method != DEFAULT_METHOD:
+            fix = "Run the benchmark again the default way (no --quick, --repeats or stale --no-run results) to compare."
+        else:
+            fix = "The baseline uses an outdated method: re-record it with --baseline."
+        print(f"\nThe baseline was measured as \"{base_method}\" but this run as \"{run_method}\", "
+              f"so they can't be compared fairly. {fix}")
+        return False
     print(f"\nCompared with baseline {base['meta'].get('commit', '?')} ({base['meta'].get('date', '?')}), "
           f"threshold {threshold:.0%}:")
     print(f"  {'scene':18} {'metric':11} {'baseline':>9} {'latest':>9} {'change':>8}")
@@ -222,8 +276,12 @@ def main():
     ap.add_argument("--no-run", action="store_true", help="reuse bench/results/latest.json")
     ap.add_argument("--threshold", type=float, default=0.05)
     ap.add_argument("--scenes", default=",".join(RUNS))
-    ap.add_argument("--quick", action="store_true", help="fewer frames, one repeat (not for baselines)")
+    ap.add_argument("--quick", action="store_true", help="fewer frames, one run (not comparable, not for baselines)")
+    ap.add_argument("--repeats", type=int, default=REPEATS,
+                    help=f"runs per scene (default {REPEATS}); use 1 for a quick single reading, e.g. heap growth")
     a = ap.parse_args()
+    if a.repeats < 1:
+        sys.exit("--repeats must be at least 1.")
     if a.no_run:
         res = json.loads(LATEST.read_text(encoding="utf-8"))
     else:
@@ -231,7 +289,7 @@ def main():
         unknown = [n for n in names if n not in RUNS]
         if unknown:
             sys.exit(f"Unknown scenes: {unknown}. Known: {list(RUNS)}")
-        res = run(names, a.quick)
+        res = run(names, a.quick, a.repeats)
         RESULTS.mkdir(exist_ok=True)
         LATEST.write_text(json.dumps(res, indent=2), encoding="utf-8")
     ok = budgets(res)
@@ -239,8 +297,13 @@ def main():
     if a.compare:
         ok = compare(res, a.threshold) and ok
     if a.baseline:
-        if a.quick:
-            sys.exit("Refusing to save a --quick run as the baseline.")
+        got = res["meta"].get("method")
+        if got != DEFAULT_METHOD:
+            sys.exit(f"Refusing to save a run measured as \"{got}\" as the baseline: "
+                     f"baselines must be measured as \"{DEFAULT_METHOD}\" (a full run, no --quick or --repeats).")
+        missing = [n for n in RUNS if n not in res["scenes"]]
+        if missing:
+            sys.exit(f"Refusing to save a partial run as the baseline (missing: {', '.join(missing)}).")
         BASELINE.write_text(json.dumps(res, indent=2), encoding="utf-8")
         print(f"\nSaved {BASELINE.relative_to(ROOT)}")
     sys.exit(0 if ok else 1)

@@ -8,7 +8,7 @@
           {
             "type": "command",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/before_push.py\"",
-            "timeout": 900
+            "timeout": 1500
           }
         ]
       },

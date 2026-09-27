@@ -61,7 +61,7 @@ Pass the reviewers' findings to `triage`. Send blockers back to the same impleme
 
 ## 6. Ratchet the baseline
 
-If the benchmarks genuinely improved and nothing regressed, update the baseline with `python bench/run_bench.py --baseline`, and mention the improvement. Machine drift isn't an improvement. If a re-baseline is only needed because the machine slowed down, ask Luke first and commit it separately with a clear message.
+If the benchmarks genuinely improved and nothing regressed, update the baseline with `python bench/run_bench.py --baseline`, and mention the improvement. Also re-baseline when `--compare` reports that the baseline uses an outdated measuring method, and commit that on its own. If it's *this run* that was measured differently (`--quick`, `--repeats`, or stale `--no-run` results), re-run the benchmark instead. Machine drift isn't an improvement. (The benchmark takes the median of 5 interleaved runs, which absorbs most of the noise within a single session. Drift between sessions, such as a machine slowing down as it heats up, can still show up.) If a re-baseline is only needed because the machine slowed down, ask Luke first and commit it separately with a clear message.
 
 ## 7. Finish
 

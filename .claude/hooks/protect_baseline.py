@@ -20,7 +20,7 @@ def main():
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "deny",
-            "permissionDecisionReason": "bench/baseline.json only changes through `python bench/run_bench.py --baseline`, and only when the numbers genuinely improved."
+            "permissionDecisionReason": "bench/baseline.json only changes through `python bench/run_bench.py --baseline`, and only when the numbers genuinely improved or the measuring method changed."
         }}))
     return 0
 

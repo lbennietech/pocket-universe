@@ -32,7 +32,7 @@ To measure instead of guessing, load the page with the test hook: `tests/run_tes
 ## Evidence you can use
 
 - `python tests/run_tests.py --browsers chromium` runs the physics invariants (`tests/invariants.js`): determinism, energy and momentum conservation, NaN under stress, tunnelling at 450 km/s and step-size stability. Their tolerances are the physics targets in `CLAUDE.md`.
-- `python bench/run_bench.py --scenes long-run,collision-pileup` reports frame timings, heap growth and non-finite bodies for the stress scenes (`bench/scenes.js`).
+- `python bench/run_bench.py --scenes long-run,collision-pileup --repeats 1` reports frame timings, heap growth and non-finite bodies for the stress scenes (`bench/scenes.js`).
 - The test hook lets you seed (`__pu.seed`), stop the real-time loop (`__pu.stopLoop`), drive frames (`__pu.tick`) or bare physics steps (`__pu.physics`), and build bench scenes (`__puBuild`).
 
 ## Report

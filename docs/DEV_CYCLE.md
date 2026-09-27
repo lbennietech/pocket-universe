@@ -22,7 +22,7 @@ The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterat
 | `/audit` | Full review of the game by seven specialist agents, then triage into the backlog. The most expensive command, so run it rarely. |
 | "show the backlog" / "show the batches" | Claude lists the Ready items or batches with their Tier and Est. time |
 | `python tests/run_tests.py` | All checks: three browsers, emulated phones, physics invariants. `--quick` for a load check, `--screens` to save screenshots to `tests/output/`. |
-| `python bench/run_bench.py` | Benchmarks. `--compare` checks against `bench/baseline.json`, and `--baseline` records a new one (only after a genuine improvement). |
+| `python bench/run_bench.py` | Benchmarks, about 3 minutes. Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`). `--compare` checks against `bench/baseline.json`, and `--baseline` records a new one (only after a genuine improvement, or when the measuring method changes). `--quick` is a fast single run, not comparable with the baseline. |
 | `python tools/serve.py` | Serves the game at http://localhost:8765/ for the Playwright browser tool. |
 | `python tools/build_artifact.py` | Rebuilds `pocket-universe.html` for the claude.ai artifact (it skips the rebuild if `index.html` hasn't changed). |
 | `/effort high` | For hard reasoning in the main session. Return to medium afterwards. |
@@ -118,7 +118,7 @@ Simulation changes interact through shared physics, so `sim` and `perf` stay sma
 5. **Triage.** Blockers go back to the same implementer via SendMessage, then retest.
    - An item that can't be fixed quickly is dropped from the batch rather than holding up the rest.
    - Everything else goes to the backlog.
-6. **Ratchet the baseline** with `python bench/run_bench.py --baseline`, only if the numbers genuinely improved.
+6. **Ratchet the baseline** with `python bench/run_bench.py --baseline`, only if the numbers genuinely improved or the measuring method changed (`--compare` says so when it did).
    - Machine drift doesn't count. If a re-baseline is only needed because the machine slowed down, ask Luke first and commit it separately.
 7. **Finish.**
    - Each item gets its own Done row: Tier, result and commit. The batch's Actual time goes on its first item.

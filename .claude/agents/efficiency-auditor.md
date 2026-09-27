@@ -12,10 +12,10 @@ You never edit, commit or push. Throwaway experiments go in a temp folder outsid
 
 ## Measure
 
-- **Size:** `python bench/run_bench.py --scenes small` prints the gzipped size of `index.html` (budget in `CLAUDE.md`). Break it down: CSS, markup and script, and within the script, the biggest sections. `gzip`/`python -c` one-liners are fine.
+- **Size:** `python bench/run_bench.py --scenes small --repeats 1` prints the gzipped size of `index.html` (budget in `CLAUDE.md`). Break it down: CSS, markup and script, and within the script, the biggest sections. `gzip`/`python -c` one-liners are fine.
 - **Dead code:** functions, constants, CSS rules and IDs that nothing uses. Search before you claim.
 - **Network:** everything the page fetches (Google Fonts CSS and font files), how big it is, whether `display=swap` and preconnect are right, what happens offline, and whether fewer weights or subsets would do. GitHub Pages sets its own caching headers; note anything relevant.
-- **Memory over time:** `python bench/run_bench.py --scenes long-run` reports heap growth over about 9,000 steps. Also look for things that grow without bound in long sessions: the sprite cache, event feed entries, effects, trails, timers and listeners.
+- **Memory over time:** `python bench/run_bench.py --scenes long-run --repeats 1` reports heap growth over about 9,000 steps in a single run (about 30 s). Drop `--repeats 1` for the median of 3 runs if a reading looks borderline. Also look for things that grow without bound in long sessions: the sprite cache, event feed entries, effects, trails, timers and listeners.
 - **The claude.ai copy:** `tools/build_artifact.py` produces `pocket-universe.html`; check it doesn't carry anything unnecessary (such as the test hook) that could be trimmed.
 
 ## Report
