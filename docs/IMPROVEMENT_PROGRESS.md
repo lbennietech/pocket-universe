@@ -1,6 +1,6 @@
 # Improvement plan: progress
 
-Tracks the work order in `IMPROVEMENT_PLAN.md`. To pick up in a new session, open Claude Code in this folder and say "continue the improvement plan".
+Tracks the work order in `docs/IMPROVEMENT_PLAN.md` (now archived). To pick up in a new session, open Claude Code in this folder and say "continue the improvement plan".
 
 ## Decisions (Luke, 2026-09-27)
 
