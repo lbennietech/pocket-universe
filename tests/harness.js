@@ -157,6 +157,118 @@
     const perSec = (P().simTime - t0) / ((performance.now() - w0) / 1000);
     check('sim runs at the slider rate', Math.abs(perSec / P().rate - 1) < 0.1, { simPerSec: r2(perSec), rate: P().rate });
 
+    // --- regression checks for bugs found in the first full review ---
+
+    // Esc cancels a throw even while Ctrl is still held
+    loadScene('empty');
+    await wait(100);
+    key('1');
+    pe('pointerdown', 500, 400, { ctrl: true });
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', ctrlKey: true, bubbles: true }));
+    const aimAfterEsc = !!P().aim;
+    pe('pointerup', 500, 400, { ctrl: true });
+    check('Esc cancels a throw while Ctrl is held', !aimAfterEsc && P().bodies.length === 0,
+      { aimAfterEsc, bodies: P().bodies.length });
+
+    // The ? button brings the hint back
+    $('hint').classList.add('gone');
+    $('help').click();
+    check('? button shows the hint again', !$('hint').classList.contains('gone'), {});
+
+    // A mouse-clicked button gives up focus, so Space pauses instead of pressing it again
+    $('restart').focus();
+    $('restart').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    check('clicked buttons release focus', document.activeElement !== $('restart'),
+      { active: document.activeElement && document.activeElement.id });
+
+    // The planet preview keeps one style at small masses instead of flickering
+    pe('pointerdown', 500, 400, { ctrl: true });
+    const styles = new Set();
+    for (let i = 0; i < 20; i++) styles.add(P().aimStyle(1));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', ctrlKey: true, bubbles: true }));
+    pe('pointerup', 500, 400, { ctrl: true });
+    check('small-planet preview keeps one style', styles.size === 1, { styles: [...styles] });
+
+    // Brown dwarfs are always smaller than the smallest star
+    const rBd = P().radiusFor(940, 'planet'), rRd = P().radiusFor(P().IGNITE, 'star');
+    check('biggest brown dwarf is smaller than smallest star', rBd < rRd, { brownDwarf: r2(rBd), redDwarf: r2(rRd) });
+
+    // A black hole shredding a star keeps the pair's momentum
+    loadScene('empty');
+    await wait(100);
+    key('4');
+    await place('4', 700, 450, 0, 0, 0);
+    await place('3', 500, 450, 0, 60, 0);
+    // with only the two of them, their centre-of-mass velocity is constant;
+    // after the shred the hole should move at exactly that velocity
+    const mom = () => P().bodies.reduce((a, b) => [a[0] + b.m * b.vx, a[1] + b.m * b.vy, a[2] + b.m], [0, 0, 0]);
+    const [px0, py0, m0all] = mom();
+    const vcx = px0 / m0all, vcy = py0 / m0all;
+    let tries = 0;
+    while (P().bodies.length > 1 && tries++ < 60) await wait(100);
+    const hole = P().bodies[0];
+    const off = Math.hypot(hole.vx - vcx, hole.vy - vcy) / (Math.hypot(vcx, vcy) || 1);
+    check("shredded star leaves the hole at the pair's centre-of-mass velocity", P().bodies.length === 1 && off < 0.02,
+      { bodies: P().bodies.length, relativeError: r2(off) });
+
+    // Pausing still lets the screen shake and flash die down
+    const flashNow = P().flash;
+    key(' ');
+    await wait(600);
+    const settled = P().flash <= flashNow * 0.2 + 0.01 && P().shake < 1;
+    key(' ');
+    check('shake and flash settle while paused', settled, { flash: r2(P().flash), shake: r2(P().shake) });
+
+    // A runaway heavy black hole doesn't delete the solar system it leaves
+    loadScene('cradle');
+    await wait(100);
+    for (let i = 0; i < 6; i++) key('-');          // zoom out so the corner is ~14 AU away
+    await place('4', innerWidth - 60, 60, 1200, 300, -300);
+    const sunId = P().bodies.find(b => b.kind === 'star').id;
+    $('speed').value = 1000; $('speed').dispatchEvent(new Event('input'));
+    await wait(5000);
+    $('speedLabel').click();
+    const sunKept = P().bodies.some(b => b.id === sunId);
+    const bhGone = !P().bodies.some(b => b.kind === 'bh');
+    check('a runaway black hole leaves the solar system alone', sunKept && bhGone && P().dust > 300,
+      { sunKept, bhGone, bodies: P().bodies.length, dust: P().dust });
+
+    // Throwing a heavy star into auto-orbit keeps the Sun's planets with the Sun
+    loadScene('cradle');
+    await wait(100);
+    key(' ');
+    for (let i = 0; i < 5; i++) key('-');
+    key('o');
+    await place('3', innerWidth / 2 + 300, innerHeight / 2, 2500);
+    key('o');
+    const sun = P().bodies.find(b => b.kind === 'star' && Math.abs(b.m - P().MSUN) < 1);
+    const planets = P().bodies.filter(b => b.kind === 'planet' && !b.icy);
+    const bound = planets.filter(b => {
+      const dvx = b.vx - sun.vx, dvy = b.vy - sun.vy, r = Math.hypot(b.x - sun.x, b.y - sun.y);
+      return 0.5 * (dvx * dvx + dvy * dvy) - (sun.m + b.m) / r < 0;
+    }).length;
+    const heavy = P().bodies.find(b => b.kind === 'star' && b !== sun);
+    key(' ');
+    check('auto-orbit throw of a heavy star keeps the planets bound to their Sun', bound === planets.length && heavy,
+      { bound, planets: planets.length, thrownMsun: heavy && r2(heavy.m / P().MSUN) });
+
+    // After a pinch, dragging the remaining finger moves the view and stops following
+    const t = P().bodies[P().bodies.length - 1];
+    const [bx, by] = scr(t);
+    pe('pointerdown', bx, by, { pt: 'touch', id: 51 }); pe('pointerup', bx, by, { pt: 'touch', id: 51 });
+    const following = P().follow;
+    pe('pointerdown', 600, 400, { pt: 'touch', id: 52 });
+    pe('pointerdown', 700, 400, { pt: 'touch', id: 53 });
+    pe('pointermove', 720, 400, { pt: 'touch', id: 53 });
+    pe('pointerup', 720, 400, { pt: 'touch', id: 53 });
+    const camX = P().cam.x;
+    pe('pointermove', 610, 400, { pt: 'touch', id: 52 });
+    pe('pointermove', 750, 400, { pt: 'touch', id: 52 });
+    await wait(200);
+    pe('pointerup', 750, 400, { pt: 'touch', id: 52 });
+    check('finger left after a pinch pans and stops following', following && !P().follow && P().cam.x < camX - 20,
+      { wasFollowing: following, following: P().follow, camDx: r2(P().cam.x - camX) });
+
     // Every scene loads and runs
     for (const s of ['galaxies', 'cradle', 'feast', 'eight', 'formation', 'binary', 'mayhem']) {
       loadScene(s);

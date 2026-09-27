@@ -40,12 +40,14 @@ HEAD_SHIM = (
     "</script>"
 )
 
+# (file name, harness query, virtual ms before the screenshot). Scene shots are
+# taken early so the hint and the scene description are still on screen.
 DESKTOP_SHOTS = [
-    ("desktop-showcase", "scene=showcase"),
-    ("desktop-galaxies", "scene=galaxies"),
-    ("desktop-cradle", "scene=cradle&zoom=3"),
-    ("desktop-feast", "scene=feast&zoom=2"),
-    ("desktop-formation", "scene=formation&run=4000"),
+    ("desktop-showcase", "scene=showcase", 30000),
+    ("desktop-galaxies", "scene=galaxies", 6000),
+    ("desktop-cradle", "scene=cradle&zoom=1", 6000),
+    ("desktop-feast", "scene=feast", 6000),
+    ("desktop-formation", "scene=formation&run=4000", 8000),
 ]
 
 
@@ -142,9 +144,9 @@ def screens(browser, page, tmp):
     for old in OUT.glob("*.png"):
         old.unlink()
     ok = True
-    for name, query in DESKTOP_SHOTS:
+    for name, query, budget in DESKTOP_SHOTS:
         shot = OUT / (name + ".png")
-        res = run_browser(browser, page.as_uri() + "?mode=visual&" + query, tmp, name, budget=40000, shot=shot)
+        res = run_browser(browser, page.as_uri() + "?mode=visual&" + query, tmp, name, budget=budget, shot=shot)
         errs = (res or {}).get("errors", ["no results"])
         ok = ok and not errs
         print(f"saved {shot.relative_to(ROOT)}" + (f"   ERRORS: {errs}" if errs else ""))

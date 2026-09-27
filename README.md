@@ -16,12 +16,13 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 | Throw something | Hold **Ctrl** (**⌘** on a Mac) and drag. The drag's direction and length set its speed. | Touch and hold until the ring fills, then drag |
 | Make it bigger | Hold still before you drag, or scroll while placing | Keep holding still, or pinch with a second finger |
 | Perfect circular orbit | Hold **Shift** as well, or turn on **Auto-orbit** (`O`) | Auto-orbit button |
-| Cancel a throw | `Esc` | — |
+| Cancel a throw | `Esc` (works while Ctrl is still held) | — |
 | Pick what to throw | `1` planet, `2` comet, `3` star, `4` black hole, `5` dust | Dock buttons |
 | Pause | `Space` | Pause button |
 | Change speed | Speed slider, or `[` / `]`. Click the readout to reset. | Speed slider |
-| Trails, warp grid, habitable zones | `T`, `G`, `Z` | Dock buttons |
+| Trails, warp grid, habitable zones | `T`, `G`, `Z` (switched-on settings glow blue; the tool you're holding glows gold) | Dock buttons |
 | Center or follow, restart, stop inspecting | `F`, `R`, `Esc` | Dock buttons |
+| Show the controls and the scene's description again | `H` or the **?** button | **?** button |
 
 **Speed.** The slider runs from about 3 hours to more than a year of simulated time per real second. It starts at 9 days a second, and the readout shows the current rate.
 
