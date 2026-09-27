@@ -2470,6 +2470,17 @@
     resizeRaf = requestAnimationFrame(resize);
   });
 
+  // Read-only view of game state for the automated tests in tests/. Only the
+  // test runner sets __PU_TEST__, so normal play never exposes it.
+  if (window.__PU_TEST__) {
+    window.__pu = {
+      cam,
+      get bodies() { return bodies; }, get aim() { return aim; }, get rate() { return rate; },
+      get simTime() { return simTime; }, get dust() { return T.n; },
+      aimMass: () => aim ? aimMass() : 0
+    };
+  }
+
   resize();
   setRate(RATE_DEFAULT);
   loadScene('galaxies');

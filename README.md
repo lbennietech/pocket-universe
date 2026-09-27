@@ -57,6 +57,15 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 - **Supernova remnants** glow in hydrogen red, oxygen teal and hot white, like the Crab Nebula.
 - **Warp view**: a grid bent by every heavy mass, with gravitational-wave ripples when black holes merge.
 
+## Development
+
+The game is `index.html`; there's nothing to build. To check a change, run the automated tests, which need Python 3.10+ and Chrome or Edge:
+
+```
+python tests/run_tests.py            # scripted mouse, touch and keyboard checks
+python tests/run_tests.py --screens  # also saves desktop and phone screenshots to tests/output/
+```
+
 ## Author
 
 Created by **Luke Bennie** ([lukebennie@gmail.com](mailto:lukebennie@gmail.com)).
