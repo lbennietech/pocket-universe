@@ -21,7 +21,7 @@ A browser gravity sandbox by Luke Bennie. Everything in the game lives in `index
 5. If the change touches the simulation (gravity, collisions, sizes, masses, speed or time-stepping, dust, life rules or scenes), also have the **physics-reviewer** agent review it.
 6. Run `python tools/build_artifact.py` and republish `pocket-universe.html` to the claude.ai artifact, so both copies match.
 
-A hook blocks `git push` if the tests or the benchmark comparison fail (see `.claude/hooks/`).
+A hook blocks `git push` of this repository if the tests or the benchmark comparison fail (see `.claude/hooks/`). Pushes of other repositories run from a session here, such as Coldstarter, aren't gated.
 
 ## Targets & design pillars
 
