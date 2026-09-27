@@ -16,13 +16,13 @@ Tracks the work order in `IMPROVEMENT_PLAN.md`. To pick up in a new session, ope
 - [x] 0: survey, `docs/ARCHITECTURE.md`
 - [x] Groundwork: seedable `rand()`, frame timing (`perf`), test hook `tick`/`physics`/`seed`
 - [x] 1: `CLAUDE.md` targets, pillars, workflow, model & effort
-- [ ] 2: benchmarks (`bench/`)
-- [ ] 3: physics invariant tests (`tests/invariants.js`)
-- [ ] 4: Playwright test runner, `tools/serve.py`, `.mcp.json`, playtester personas
-- [ ] 5: audit agents (perf-profiler, ux-reviewer, game-designer, efficiency-auditor, code-quality-reviewer, triage) and model/effort on existing agents
-- [ ] 6: `BACKLOG.md`
-- [ ] 7: skills `/audit` and `/iterate`
-- [ ] 8: hooks
-- [ ] 9: A/B worktree convention (documented in `CLAUDE.md`)
+- [x] 2: benchmarks (`bench/`)
+- [x] 3: physics invariant tests (`tests/invariants.js`)
+- [x] 4: Playwright test runner, `tools/serve.py`, `.mcp.json`, playtester personas
+- [x] 5: audit agents (perf-profiler, ux-reviewer, game-designer, efficiency-auditor, code-quality-reviewer, triage) and model/effort on existing agents
+- [x] 6: `BACKLOG.md`
+- [x] 7: skills `/audit` and `/iterate`
+- [x] 8: hooks
+- [x] 9: A/B worktree convention (documented in `CLAUDE.md`)
 - [ ] 10: nightly audit (skipped by decision)
 - [ ] First `/audit`, then the full routine, then push
