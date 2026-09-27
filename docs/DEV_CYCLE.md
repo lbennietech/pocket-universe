@@ -29,15 +29,18 @@ The most expensive command, so run it rarely: when the Ready list gets thin, or 
 
 The everyday command. `/iterate` takes the top Ready item; `/iterate PERF-002` takes the item you name.
 
-1. **Pick.** Move the item to In progress. If it's a big architectural choice, use the A/B worktree convention (below). If it needs deep reasoning, switch on `/effort high`.
-2. **Implement** the smallest change that delivers the item, in `index.html`, and add or extend a check in `tests/harness.js` or `tests/invariants.js` for new behaviour.
+1. **Pick.** Move the item to In progress. If it's a big architectural choice, use the A/B worktree convention (below).
+2. **Choose the implementer tier and implement.** `/iterate` picks one of three agents to make the smallest change that delivers the item, in `index.html`, plus a check in `tests/harness.js` or `tests/invariants.js` for new behaviour:
+   - **Deep** (`implementer-deep`, Opus at high effort): the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
+   - **Opus** (`implementer-opus`, Opus at medium effort): a physics or perf area item, or anything at effort 2 or more.
+   - **Light** (`implementer`, Sonnet at medium effort): everything else.
+   - Luke can override the tier, for example "/iterate UX-005 on Opus".
 3. **Test.** `python tests/run_tests.py` must pass everywhere, and `python bench/run_bench.py --compare` must not regress by more than 5%.
 4. **Review.**
    - `/code-review` on the diff, and fix what it finds.
    - The `playtester` agent, always.
-   - The `physics-reviewer` agent if the simulation changed (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scenes).
-   - For changes to the integrator, time-stepping, collisions and merges, or determinism, a physics review in the main session at `/effort high` as well.
-5. **Triage** the review findings. Fix blockers now (and retest), and send the rest to the backlog.
+   - The `physics-reviewer` agent if the simulation changed (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scenes). Deep-tier items already got Opus at high effort during implementation, so no separate high-effort physics pass is needed here.
+5. **Triage** the review findings. For blockers, send them back to the same implementer agent via SendMessage (then retest); send the rest to the backlog.
 6. **Ratchet the baseline** with `python bench/run_bench.py --baseline` if the benchmarks improved and nothing regressed.
 7. **Finish.** Move the item to Done with its result and commit hash, update `README.md` if controls or features changed, then commit and push. A hook reruns the tests and the benchmark comparison and blocks the push if either fails. Finally, `python tools/build_artifact.py` and republish the artifact.
 
@@ -67,7 +70,7 @@ For a big architectural choice, such as a quadtree versus a uniform grid, Canvas
 
 ## Keeping usage down
 
-Each agent's model and effort are set in its file in `.claude/agents/` and listed in the Model & effort section of `CLAUDE.md`. Opus is kept for physics-reviewer and perf-profiler (named explicitly, so they stay on Opus in a Sonnet session), and the rest run on Sonnet. For planning, backlog questions, docs and simple UX items, a session started with `/model sonnet` is enough. Use Opus for physics, performance and architecture work. Switch models at the start of a session rather than partway through, because prompt caching is per model. Beyond that:
+Each agent's model and effort are set in its file in `.claude/agents/` and listed in the Model & effort section of `CLAUDE.md`. The session itself defaults to Sonnet at medium effort (`.claude/settings.json`). `/iterate` routes implementation work to one of three implementer agents by tier (`implementer` on Sonnet, `implementer-opus` and `implementer-deep` on Opus), named explicitly so they keep their model regardless of the session's. `physics-reviewer` and `perf-profiler` do the same. Switch models at the start of a session rather than partway through, because prompt caching is per model. Beyond that:
 
 - Prefer many small `/iterate` runs to frequent audits.
 - Keep the session at medium effort, and use `/effort high` only where it's clearly needed.

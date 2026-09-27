@@ -8,16 +8,21 @@ argument-hint: "[backlog ID, optional]"
 
 Wraps the pre-push routine in `CLAUDE.md` and extends it with the backlog and the benchmarks. Keep the existing routine's behaviour; this adds to it.
 
-## 1. Pick the item
+## 1. Pick the item and its tier
 
 - Use the ID in `$ARGUMENTS` if given, else the top row of **Ready** in `BACKLOG.md`.
 - Move it to **In progress** (keep its row, add today's date).
 - If it's a big architectural choice (for example a spatial structure, WebGL, a Worker), follow the A/B worktree convention in `CLAUDE.md` instead of picking one approach up front.
-- If it needs deep reasoning (integrator, collisions, determinism, spatial structures, threading), tell Luke that `/effort high` is worth switching on for this one.
+- Choose which `implementer` agent does the work:
+  - **Deep** (`implementer-deep`, Opus at high effort): the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
+  - **Opus** (`implementer-opus`, Opus at medium effort): a physics or perf area item, or anything with effort 2 or more.
+  - **Light** (`implementer`, Sonnet at medium effort): everything else — ux, design, efficiency or code items at effort 1.
+  - Luke can override the tier, for example "/iterate UX-005 on Opus".
+  - Say which tier was chosen and why before delegating.
 
 ## 2. Implement
 
-Make the **smallest reasonable change** that delivers the item, in `index.html` (plus tests if the behaviour is new). Keep the single-file, no-build design. Use `rand()`, never `Math.random()`, in anything that shapes the simulation. Add or extend a check in `tests/harness.js` or `tests/invariants.js` for new behaviour.
+Delegate the implementation to the chosen agent, briefing it with the item's full row from `BACKLOG.md` (ID, area, impact, effort, evidence) and its proposal. It makes the **smallest reasonable change** that delivers the item, in `index.html` (plus tests if the behaviour is new), keeping the single-file, no-build design, using `rand()` never `Math.random()`, and adding or extending a check in `tests/harness.js` or `tests/invariants.js` for new behaviour. It reports back what changed and the test result; it never commits or pushes.
 
 ## 3. Test
 
@@ -28,14 +33,13 @@ Make the **smallest reasonable change** that delivers the item, in `index.html` 
 
 - Run `/code-review` on the change and fix what it finds.
 - Run the `playtester` agent (always).
-- Run the `physics-reviewer` agent if the simulation changed (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scenes).
-- If the change touches the integrator, time-stepping, collisions and merges, or determinism, also review the physics yourself at `/effort high` (the agent runs at medium to save usage).
+- Run the `physics-reviewer` agent if the simulation changed (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scenes). Deep-tier items already got Opus at high effort during implementation, so no separate high-effort physics pass is needed here.
 
 If the project's agents aren't available as agent types, run `general-purpose` agents told to follow the matching file in `.claude/agents/`.
 
 ## 5. Triage the reviews
 
-Pass the reviewers' findings to `triage`. Fix blockers now (then repeat steps 3 and 4 for the fix), and send everything else to the backlog.
+Pass the reviewers' findings to `triage`. For blockers, send them back to the same implementer agent from step 2 via SendMessage (it keeps the context from its first pass), then repeat steps 3 and 4 for the fix. Send everything else to the backlog.
 
 ## 6. Ratchet the baseline
 

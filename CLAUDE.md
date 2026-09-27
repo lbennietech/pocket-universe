@@ -63,15 +63,16 @@ Checked by `tests/invariants.js`.
 
 ### Model & effort
 
-- The session default is Opus 5.5 at **medium** effort.
+- The session default is Sonnet 5 at **medium** effort, set in `.claude/settings.json`. Switch to Opus yourself for hard reasoning that isn't already covered by an implementer tier (see below) or by `physics-reviewer`/`perf-profiler`.
 - Use `/effort high` for hard reasoning (integrator changes, collision edge cases, determinism bugs, spatial-structure rewrites, threading or architecture changes), then return to medium.
 - Avoid xhigh and max: they're rarely worth it here and burn Pro usage limits fast.
 - Each agent's frontmatter sets its own model and effort. Don't change them without a reason. If an agent misses things or wastes usage, adjust one level at a time.
-- Opus is kept for the two agents whose work needs deep reasoning, and the rest run on Sonnet to save usage (set 2026-09-27):
-  - Opus at medium: `physics-reviewer`, `perf-profiler`. They name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model.
-  - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`.
+- Opus is kept for the agents whose work needs deep reasoning, and the rest run on Sonnet to save usage (set 2026-09-27, implementer tiers added 2026-09-27):
+  - Opus at high: `implementer-deep`. Used by `/iterate` for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
+  - Opus at medium: `physics-reviewer`, `perf-profiler`, `implementer-opus`. The reviewers name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model. `implementer-opus` is used by `/iterate` for physics or perf area items, or anything at effort 2 or more.
+  - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`, `implementer`. `implementer` is used by `/iterate` for everything else (ux, design, efficiency or code items at effort 1).
   - Sonnet at low: `efficiency-auditor`, `playtester`, `triage`.
-- Because `physics-reviewer` runs at medium, changes to the integrator, time-stepping, collisions and merges, or determinism also get a physics review in the main session at `/effort high`, in addition to the agent's review. If a physics bug gets past both and the tests, move the agent back to high.
+- `/iterate` picks the implementer tier automatically per item (see its skill file); Luke can override it, for example "/iterate UX-005 on Opus". Deep-tier items already get Opus at high effort during implementation, so they don't also need a separate high-effort physics pass from the main session.
 - Run `/audit` rarely, since it's the most expensive command. Work the existing backlog down with `/iterate` first.
 
 ## Conventions
