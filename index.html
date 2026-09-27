@@ -538,12 +538,26 @@
   // Helpers
   // ---------------------------------------------------------------------------
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const pick = arr => arr[(Math.random() * arr.length) | 0];
+  // All randomness that shapes the simulation goes through rand(). Normally it
+  // is Math.random; tests and benchmarks swap in a seeded generator so the
+  // same seed always builds and runs the same universe. Purely visual noise
+  // (screen shake, background stars) keeps using Math.random.
+  let rand = Math.random;
+  function seededRand(seed) {
+    let t = seed >>> 0;
+    return () => {   // mulberry32
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const pick = arr => arr[(rand() * arr.length) | 0];
   const hash =(a, b) => { const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return s - Math.floor(s); };
   function gauss() {
     let u = 0, v = 0;
-    while (!u) u = Math.random();
-    while (!v) v = Math.random();
+    while (!u) u = rand();
+    while (!v) v = rand();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
   function starRGB(m) {
@@ -646,7 +660,7 @@
     b.rgb = s.rgb.slice();
     b.alt = s.alt;
     b.bands = !!s.bands;
-    b.tilt = (Math.random() - 0.5) * 0.7;
+    b.tilt = (rand() - 0.5) * 0.7;
   }
   function refresh(b) {
     b.r = radiusFor(b.m, b.kind);
@@ -673,7 +687,7 @@
       rgb: kind === 'planet' ? color : null, disk: kind === 'bh' ? color : null,
       style: typeof look === 'string' ? look : null,
       trail: new Float32Array(TRAIL * 2), th: 0, tl: 0,
-      dead: false, spin: Math.random() * 6.283, feed: 0,
+      dead: false, spin: rand() * 6.283, feed: 0,
       icy: false, hz: 0, life: 0, flux: 0
     };
     refresh(b);
@@ -949,7 +963,7 @@
     const ux = dx / d, uy = dy / d;
     const rv = Math.hypot(b.vx - h.vx, b.vy - h.vy);
     for (let i = 0; i < n; i++) {
-      const u = (Math.random() * 2 - 1) * b.r * 1.3;
+      const u = (rand() * 2 - 1) * b.r * 1.3;
       const w = gauss() * b.r * 0.35;
       addTracer(b.x + ux * u - uy * w, b.y + uy * u + ux * w,
         b.vx + gauss() * rv * 0.03, b.vy + gauss() * rv * 0.03,
@@ -986,9 +1000,9 @@
     a.feed = 400;
     const r0 = a.r * 3;
     for (let i = 0; i < 520; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const fast = Math.random() < 0.7;
-      const sp = fast ? 70 + Math.random() * 70 : 12 + Math.random() * 30;
+      const ang = rand() * Math.PI * 2;
+      const fast = rand() < 0.7;
+      const sp = fast ? 70 + rand() * 70 : 12 + rand() * 30;
       addTracer(a.x + Math.cos(ang) * r0, a.y + Math.sin(ang) * r0,
         a.vx + Math.cos(ang) * sp, a.vy + Math.sin(ang) * sp,
         // a remnant glows in hydrogen red, oxygen teal and hot white, like the Crab Nebula
@@ -1139,8 +1153,8 @@
       }
       // about four probes a simulated year, however much time this update covers
       for (let k = b.life >= 3 ? dt / (0.25 * YEAR) : 0; k > 0; k--) {
-        if (Math.random() >= Math.min(1, k)) continue;
-        const a = Math.random() * Math.PI * 2, sp = 3 + Math.random() * 4;
+        if (rand() >= Math.min(1, k)) continue;
+        const a = rand() * Math.PI * 2, sp = 3 + rand() * 4;
         addTracer(b.x + Math.cos(a) * b.r * 1.6, b.y + Math.sin(a) * b.r * 1.6,
           b.vx + Math.cos(a) * sp, b.vy + Math.sin(a) * sp, 5);
       }
@@ -1154,7 +1168,7 @@
       const { F, best } = fluxAt(b.x, b.y);
       if (!best || F < 0.4) continue;
       const dx = b.x - best.x, dy = b.y - best.y, d = Math.hypot(dx, dy) || 1;
-      addTracer(b.x, b.y, b.vx + dx / d * 0.8 + gauss() * 0.3, b.vy + dy / d * 0.8 + gauss() * 0.3, Math.random() < 0.5 ? 4 : 8);
+      addTracer(b.x, b.y, b.vx + dx / d * 0.8 + gauss() * 0.3, b.vy + dy / d * 0.8 + gauss() * 0.3, rand() < 0.5 ? 4 : 8);
     }
   }
 
@@ -1179,7 +1193,7 @@
     return Math.sqrt(M * r * r / (d2 * Math.sqrt(d2)));
   }
   function orbitBody(M, rAU, m, look, phase) {
-    const r = rAU * AU, a = phase === undefined ? Math.random() * Math.PI * 2 : phase, v = circV(M, r);
+    const r = rAU * AU, a = phase === undefined ? rand() * Math.PI * 2 : phase, v = circV(M, r);
     return makeBody(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, m, 'planet', look);
   }
   function ellipticAt(cx, cy, cvx, cvy, mu, a, e, ang, sense) {
@@ -1192,18 +1206,18 @@
   // [bulge, arm, arm, star-forming knot].
   function galaxy(cx, cy, vx, vy, M, n, rmin, rmax, sense, pal, disk) {
     bodies.push(makeBody(cx, cy, vx, vy, M, 'bh', disk));
-    const arm0 = Math.random() * Math.PI * 2;
+    const arm0 = rand() * Math.PI * 2;
     const bulge = rmin + (rmax - rmin) * 0.18;
     for (let i = 0; i < n; i++) {
-      const r = rmin + Math.min(rmax - rmin, -Math.log(1 - Math.random()) * (rmax - rmin) * 0.38);
+      const r = rmin + Math.min(rmax - rmin, -Math.log(1 - rand()) * (rmax - rmin) * 0.38);
       let a, c;
-      if (Math.random() < 0.6) {
-        const arm = (Math.random() < 0.5 ? 0 : Math.PI);
+      if (rand() < 0.6) {
+        const arm = (rand() < 0.5 ? 0 : Math.PI);
         a = arm0 + arm + sense * r * 0.014 + gauss() * 0.32;
-        c = Math.random() < 0.12 ? pal[3] : pal[1 + (Math.random() < 0.5 ? 0 : 1)];
+        c = rand() < 0.12 ? pal[3] : pal[1 + (rand() < 0.5 ? 0 : 1)];
       } else {
-        a = Math.random() * Math.PI * 2;
-        c = pal[r < bulge ? 0 : 1 + (Math.random() < 0.5 ? 0 : 1)];
+        a = rand() * Math.PI * 2;
+        c = pal[r < bulge ? 0 : 1 + (rand() < 0.5 ? 0 : 1)];
       }
       const dx = Math.cos(a) * r, dy = Math.sin(a) * r;
       const v = circV(M, r);
@@ -1233,11 +1247,11 @@
         bodies.push(orbitBody(MSUN, 3.0, 90, 'gas'));
         bodies.push(orbitBody(MSUN, 5.2, 35, 'uranus'));
         for (let i = 0; i < 700; i++) {
-          const r = AU * (1.95 + Math.random() * 0.45), a = Math.random() * Math.PI * 2;
+          const r = AU * (1.95 + rand() * 0.45), a = rand() * Math.PI * 2;
           const v = circV(MSUN, r) * (1 + gauss() * 0.02);
           addTracer(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, pick([2, 12, 9]));
         }
-        const c = ellipticAt(0, 0, 0, 0, MSUN, 3.4 * AU, 0.86, Math.random() * Math.PI * 2, 1);
+        const c = ellipticAt(0, 0, 0, 0, MSUN, 3.4 * AU, 0.86, rand() * Math.PI * 2, 1);
         bodies.push(makeComet(c.x, c.y, c.vx, c.vy, 0.5));
         let px = 0, py = 0;
         for (const b of bodies) { px += b.vx * b.m; py += b.vy * b.m; }
@@ -1252,11 +1266,11 @@
         bodies.push(makeBody(0, 0, 0, 0, M, 'bh'));
         const orbits = [[300, 0.9, 1], [420, 0.93, 0.6], [520, 0.8, 1.6], [640, 0.95, 0.9], [760, 0.88, 2.2], [380, 0.7, 0.5], [880, 0.96, 1.2], [560, 0.92, 0.4]];
         for (const [a, e, s] of orbits) {
-          const o = ellipticAt(0, 0, 0, 0, M, a, e, Math.random() * Math.PI * 2, Math.random() < 0.7 ? 1 : -1);
+          const o = ellipticAt(0, 0, 0, 0, M, a, e, rand() * Math.PI * 2, rand() < 0.7 ? 1 : -1);
           bodies.push(makeBody(o.x, o.y, o.vx, o.vy, s * MSUN, 'star'));
         }
         for (let i = 0; i < 900; i++) {
-          const r = 40 + Math.random() * 220, a = Math.random() * Math.PI * 2, v = circV(M, r);
+          const r = 40 + rand() * 220, a = rand() * Math.PI * 2, v = circV(M, r);
           addTracer(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, pick([0, 0, 12, 3, 9, 6]));
         }
         zeroMomentum();   // otherwise the stars' net momentum walks the hole off-screen
@@ -1272,7 +1286,7 @@
         bodies.push(makeBody(-p[0] * L, -p[1] * L, -v3[0] / 2 * V, -v3[1] / 2 * V, m, 'star'));
         bodies.push(makeBody(0, 0, v3[0] * V, v3[1] * V, m, 'star'));
         for (let i = 0; i < 500; i++) {
-          const r = AU * (1.9 + Math.random() * 0.8), a = Math.random() * Math.PI * 2, v = circV(3 * m, r);
+          const r = AU * (1.9 + rand() * 0.8), a = rand() * Math.PI * 2, v = circV(3 * m, r);
           addTracer(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, pick([4, 1, 7, 8]));
         }
       }
@@ -1285,9 +1299,9 @@
         bodies.push(sun);
         let px = 0, py = 0;
         for (let i = 0; i < 280; i++) {
-          const r = AU * (0.6 + Math.random() * 4.2);
-          const a = Math.random() * Math.PI * 2;
-          const m = 3 + Math.random() * 5;
+          const r = AU * (0.6 + rand() * 4.2);
+          const a = rand() * Math.PI * 2;
+          const m = 3 + rand() * 5;
           const v = circV(MSUN, r) * (1 + gauss() * 0.05);
           const vr = gauss() * 0.05 * v;
           const ux = Math.cos(a), uy = Math.sin(a);
@@ -1297,8 +1311,8 @@
         }
         sun.vx = -px / sun.m; sun.vy = -py / sun.m;
         for (let i = 0; i < 900; i++) {
-          const r = AU * (0.4 + Math.random() * 5.2);
-          const a = Math.random() * Math.PI * 2;
+          const r = AU * (0.4 + rand() * 5.2);
+          const a = rand() * Math.PI * 2;
           const v = circV(MSUN, r) * (1 + gauss() * 0.03);
           addTracer(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, pick([2, 4, 12, 9, 10]));
         }
@@ -1314,12 +1328,12 @@
         bodies.push(makeBody(sep * m1 / Mt, 0, 0, vrel * m1 / Mt, m2, 'star'));
         const planets = [[2.2, 4, 'rust'], [3.3, 12, 'teal'], [4.6, 30, 'amber'], [6.2, 8, 'neptune']];
         for (const [rAU, m, look] of planets) {
-          const r = rAU * AU, a = Math.random() * Math.PI * 2, v = Math.sqrt(Mt / r);
+          const r = rAU * AU, a = rand() * Math.PI * 2, v = Math.sqrt(Mt / r);
           bodies.push(makeBody(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, m, 'planet', look));
         }
         for (let i = 0; i < 800; i++) {
           const r = AU * (7.6 + gauss() * 0.35);
-          const a = Math.random() * Math.PI * 2;
+          const a = rand() * Math.PI * 2;
           const v = Math.sqrt(Mt / r) * (1 + gauss() * 0.01);
           addTracer(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, pick([2, 3, 13, 7]));
         }
@@ -1332,10 +1346,10 @@
         const placed = [];
         let tries = 0;
         while (placed.length < 12 && tries++ < 500) {
-          const r = 700 * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
+          const r = 700 * Math.sqrt(rand()), a = rand() * Math.PI * 2;
           const x = Math.cos(a) * r, y = Math.sin(a) * r;
           if (placed.some(p => Math.hypot(p.x - x, p.y - y) < 110)) continue;
-          const m = MSUN * Math.exp(Math.log(1.5) + Math.random() * Math.log(9 / 1.5));
+          const m = MSUN * Math.exp(Math.log(1.5) + rand() * Math.log(9 / 1.5));
           placed.push({ x, y, m });
         }
         let M = 0;
@@ -1348,8 +1362,8 @@
           bodies.push(b);
         }
         for (let i = 0; i < 30; i++) {
-          const r = 850 * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
-          const b = makeBody(Math.cos(a) * r, Math.sin(a) * r, gauss() * vs, gauss() * vs, 4 + Math.random() * 30, 'planet');
+          const r = 850 * Math.sqrt(rand()), a = rand() * Math.PI * 2;
+          const b = makeBody(Math.cos(a) * r, Math.sin(a) * r, gauss() * vs, gauss() * vs, 4 + rand() * 30, 'planet');
           px += b.vx * b.m; py += b.vy * b.m;
           bodies.push(b);
         }
@@ -1357,7 +1371,7 @@
         for (const b of bodies) Mall += b.m;
         for (const b of bodies) { b.vx -= px / Mall; b.vy -= py / Mall; }
         for (let i = 0; i < 900; i++) {
-          const r = 900 * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
+          const r = 900 * Math.sqrt(rand()), a = rand() * Math.PI * 2;
           addTracer(Math.cos(a) * r, Math.sin(a) * r, gauss() * vs * 0.8, gauss() * vs * 0.8, pick(NONPROBE));
         }
       }
@@ -1553,7 +1567,7 @@
       const s = assist ? assistSign(a.wx - p.x, a.wy - p.y) : 1;
       if (T.n + m > MAX_T) pushEvent(`Dust limit reached: only ${Math.max(0, MAX_T - T.n).toLocaleString()} of ${m.toLocaleString()} particles fit`, 'info', 'dustcap', 5000);
       for (let i = 0; i < m; i++) {
-        const rr = Math.abs(gauss()) * R * 0.5, ang = Math.random() * Math.PI * 2;
+        const rr = Math.abs(gauss()) * R * 0.5, ang = rand() * Math.PI * 2;
         const x = a.wx + Math.cos(ang) * rr, y = a.wy + Math.sin(ang) * rr;
         if (assist) {
           const dx = x - p.x, dy = y - p.y, r = Math.hypot(dx, dy) || 1, vc = circV(p.m, r);
@@ -2579,11 +2593,21 @@
   // ---------------------------------------------------------------------------
   // Main loop
   // ---------------------------------------------------------------------------
+  // Optional timing for benchmarks. When perf.on is false (always, in normal
+  // play) the only cost is two boolean checks a frame.
+  const perf = { on: false, physics: 0, render: 0 };
+  let loopOn = true;
   let lastTime = performance.now();
   function frame(now) {
+    if (!loopOn) return;
     requestAnimationFrame(frame);
     const elapsed = Math.min(50, now - lastTime);
     lastTime = now;
+    advance(elapsed);
+  }
+
+  // One frame of the game: input timers, simulation, camera and drawing.
+  function advance(elapsed) {
     frameN++;
 
     T.px.set(T.x.subarray(0, T.n));
@@ -2592,6 +2616,7 @@
     checkLongPress();
     if (hover && frameN % 10 === 0) updateCursor();
 
+    const tPhys = perf.on ? performance.now() : 0;
     if (!paused) {
       // Advance simulated time by rate × real time, in substeps no longer
       // than DT. Slow speeds take one short step per frame, so motion stays
@@ -2643,7 +2668,9 @@
       if (Math.hypot(cam.target.x - cam.x, cam.target.y - cam.y) < 0.5 / cam.z) cam.target = null;
     }
 
+    const tRender = perf.on ? performance.now() : 0;
     render();
+    if (perf.on) { perf.physics = tRender - tPhys; perf.render = performance.now() - tRender; }
     if (frameN % 8 === 0) { updateHud(); updateCard(); }
   }
 
@@ -2664,7 +2691,15 @@
       get selected() { return selected; }, get follow() { return follow; },
       aimMass: () => aim ? aimMass() : 0,
       aimStyle: m => aim ? aimStyle(m) : null,
-      radiusFor, MSUN, IGNITE
+      radiusFor, MSUN, IGNITE, AU, YEAR, DT, MAX_T, perf,
+      // repeatable runs: seed the generator, stop the real-time loop and drive
+      // whole frames (or bare physics steps) from the test
+      seed(n) { rand = seededRand(n); },
+      stopLoop() { loopOn = false; },
+      tick(frames = 1, elapsedMs = 1000 / 60) { for (let i = 0; i < frames; i++) advance(elapsedMs); },
+      physics(steps, dt = DT) { for (let i = 0; i < steps; i++) step(dt); },
+      setRate, loadScene, makeBody, addTracer,
+      addBody(b) { bodies.push(b); lights = bodies.filter(o => o.kind === 'star'); accel(); pairs.length = 0; }
     };
   }
 
