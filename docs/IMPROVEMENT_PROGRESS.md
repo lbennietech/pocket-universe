@@ -25,4 +25,4 @@ Tracks the work order in `IMPROVEMENT_PLAN.md`. To pick up in a new session, ope
 - [x] 8: hooks
 - [x] 9: A/B worktree convention (documented in `CLAUDE.md`)
 - [ ] 10: nightly audit (skipped by decision)
-- [ ] First `/audit`, then the full routine, then push
+- [x] First `/audit` (49 backlog items), then the full routine, then push (2026-09-27)
