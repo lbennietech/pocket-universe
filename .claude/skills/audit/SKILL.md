@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Audit the whole of Pocket Universe for improvements - run the benchmarks and invariant tests, dispatch the six specialist agents in parallel, triage their findings into BACKLOG.md and summarise the top five items. Use when Luke asks for an audit, a backlog refresh or "what should we improve next".
+description: Audit the whole of Pocket Universe for improvements - run the benchmarks and invariant tests, dispatch the six specialist agents in parallel, triage their findings into BACKLOG.md and summarise the top five items and the batches. Use when Luke asks for an audit, a backlog refresh or "what should we improve next".
 ---
 
 # /audit
@@ -36,7 +36,7 @@ Tell each one that this is a whole-game audit, that it must not edit anything, a
 
 ## 4. Triage
 
-When all have reported, pass every finding to the `triage` agent. It updates `BACKLOG.md`: it discards findings without evidence, merges duplicates, scores impact ÷ effort and keeps existing statuses.
+When all have reported, pass every finding to the `triage` agent. It updates `BACKLOG.md`: it discards findings without evidence, merges duplicates, scores impact ÷ effort, gives each item a Tier and Est. time, regroups all Ready items into batches (the Batches table), and keeps existing statuses.
 
 ## 5. Report to Luke
 
@@ -44,6 +44,7 @@ Summarise in plain language:
 
 - the headline numbers (tests passed, frame times against budget, size)
 - the **top five** Ready items, each with one line on what it is and why it matters
+- the **batches** (ID, category, tier, item count, Est. time), so Luke can see what the next few `/iterate` runs will ship
 - anything that needs Luke's decision (items that touch a pillar, or big A/B choices)
 
 Commit `BACKLOG.md` with a message like `Audit YYYY-MM-DD: N new backlog items`. Don't push just for a backlog update unless Luke asks.

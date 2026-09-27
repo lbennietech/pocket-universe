@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implements one Pocket Universe BACKLOG.md item as the smallest reasonable change. Light tier for ux/design/efficiency/code items at effort 1. Use from /iterate.
+description: Implements a Pocket Universe BACKLOG.md batch (or a single item) as the smallest reasonable changes, one isolated edit per item. Light tier for ux/design/efficiency/code items at effort 1. Use from /iterate.
 model: sonnet
 effort: medium
 tools: Bash, PowerShell, Read, Edit, Write, Glob, Grep

@@ -36,7 +36,7 @@ You maintain `BACKLOG.md` for Pocket Universe. You receive findings from other a
      - `perf`: speed work on rendering or physics that isn't Deep tier.
      - `solo`: Deep tier, an A/B experiment, effort 3, or anything that would conflict with the other items it would otherwise be grouped with. A solo item is its own one-item batch.
    - **Grouping rules.** A batch holds items of one category and one tier only. Keep items that edit the same function or the same lines apart, unless they belong together anyway (then prefer one batch and say why). Respect dependencies ("builds on X") by keeping the dependent item out of any batch that doesn't also contain X, or putting both in order in the same batch.
-   - **Size caps.** Up to 10 items for `ui` and `tooling` batches, up to 5 for `sim` and `perf` (harder to tell which change broke something).
+   - **Size caps.** Up to 15 items for `ui` and `tooling` batches (raised from 10 on 2026-09-28, after a 14-item batch shipped cleanly), and up to 5 for `sim` and `perf` (harder to tell which change broke something). A `ui` batch of effort-2 features (new controls, links, camera behaviour) stays at about 5: they're real features, and the 15 cap is meant for small effort-1 polish.
    - **Batch est. time.** Not the sum of the items. Take the largest item's estimate, then add about 2-3 min per extra item for `ui`/`tooling` and about 5 min per extra item for `sim`/`perf`. The 2026-09-28 14-item `ui`/`tooling` batch took about 35 min in total.
    - **Reviews** (the `/iterate` skill uses this column):
      - `ui`: code-review + playtester.

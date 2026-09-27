@@ -2,123 +2,175 @@
 
 Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
 
-How work flows from "what should we improve?" to a change that's live on GitHub Pages and the claude.ai artifact. There are two loops: `/audit` fills the backlog, and `/iterate` works through it one item at a time. The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterate/SKILL.md`. This guide is the overview.
+This guide covers how work flows from "what should we improve?" to a change that's live on GitHub Pages and the claude.ai artifact. There are two loops:
+
+- `/audit` fills the backlog.
+- `/iterate` works through it one **batch** at a time: a group of Ready items that can safely ship together with a single test, review and push cycle.
+
+The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterate/SKILL.md`, and the grouping rules are in `.claude/agents/triage.md`. This guide is the overview.
+
+## Quick reference
+
+| Command | What it does |
+|---|---|
+| `/iterate` | Ship the next batch (`B1`, which holds the top Ready item) |
+| `/iterate B3` | Ship a named batch |
+| `/iterate UX-104` | Ship whichever batch that item is in |
+| `/iterate UX-104 solo` | Ship just that one item |
+| `/iterate B2 without UX-104` | Ship a batch minus some items |
+| `/iterate B3 on Opus` | Ship a batch on a higher implementer tier |
+| `/audit` | Full review of the game by seven specialist agents, then triage into the backlog. The most expensive command, so run it rarely. |
+| "show the backlog" / "show the batches" | Claude lists the Ready items or batches with their Tier and Est. time |
+| `python tests/run_tests.py` | All checks: three browsers, emulated phones, physics invariants. `--quick` for a load check, `--screens` to save screenshots to `tests/output/`. |
+| `python bench/run_bench.py` | Benchmarks. `--compare` checks against `bench/baseline.json`, and `--baseline` records a new one (only after a genuine improvement). |
+| `python tools/serve.py` | Serves the game at http://localhost:8765/ for the Playwright browser tool. |
+| `python tools/build_artifact.py` | Rebuilds `pocket-universe.html` for the claude.ai artifact (it skips the rebuild if `index.html` hasn't changed). |
+| `/effort high` | For hard reasoning in the main session. Return to medium afterwards. |
 
 ## The backlog
 
-`BACKLOG.md` holds every known improvement, in four sections: **Ready**, **In progress**, **Done** and **Rejected**. Each Ready item has an ID (such as `PERF-002`), an area, impact and effort scores from 1 to 5, a priority (impact ÷ effort), a **Tier** and **Est. time** (below), and evidence (a metric, a screenshot or a `file:line`). The Ready table is sorted by priority, so the top row is the best value for the effort.
+`BACKLOG.md` has five sections: **Batches**, **Ready**, **In progress**, **Done** and **Rejected**.
 
-To see the list, open `BACKLOG.md` (VS Code and GitHub render the table), ask Claude ("show the top 10 Ready items"), or print the Ready rows from the terminal:
+Each Ready item has:
+
+- an ID (such as `PERF-002`) and an area
+- impact and effort scores from 1 to 5
+- a priority (impact ÷ effort)
+- its **Batch**
+- its **Tier**
+- an **Est. time**
+- evidence: a metric, a screenshot or a `file:line`
+
+The Ready table is sorted by priority, so the top row is the best value for the effort.
+
+To see it, open `BACKLOG.md` (VS Code and GitHub render the tables), ask Claude, or print the Ready rows from the terminal (prefix with `!` in a Claude Code session to spend no model tokens):
 
 ```
 python -c "s=open('BACKLOG.md',encoding='utf-8').read().split('## Ready')[1].split('## In progress')[0]; [print(' | '.join(c.strip() for c in l.split('|')[1:11])) for l in s.splitlines() if l.startswith('| ') and not l.startswith('| ID')]"
 ```
 
-In a Claude Code session, prefix it with `!` to run it without using model tokens.
+### Tier
 
-### Tier and Est. time (added 2026-09-28)
+The Tier is the implementer agent that takes the item. It follows the rule in "Model & effort" in `CLAUDE.md`:
 
-Every Ready row carries the **Tier** that `/iterate` would delegate it to and a rough **Est. time** for the whole pipeline (implement, test, review, ship — not just the coding). The `triage` agent fills these in for new items using the same rule `/iterate` uses to pick an implementer (see "Model & effort" in `CLAUDE.md`): Deep for the integrator, time-stepping, collisions/merges, determinism, spatial structures, threading or A/B experiments; Opus for a physics or perf area item or anything at effort 2+; Light for everything else at effort 1. These are planning estimates, not measurements, calibrated loosely against actual runs logged in the Done table (see below) — treat them as a rough guide to what to expect, not a commitment.
+- **Deep** (`implementer-deep`, Opus at high effort): the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
+- **Opus** (`implementer-opus`, Opus at medium effort): a physics or perf area item, or anything at effort 2 or more.
+- **Light** (`implementer`, Sonnet at medium effort): everything else (ux, design, efficiency or code at effort 1).
 
-When an item moves to **Done**, its row also carries its **Tier** and an **Actual time** — a rough wall-clock figure for the whole run, including any regression-fix rounds or benchmark troubleshooting, not just the implementer agent's own working time. Batched items record the batch's combined actual time once, on the batch's first item, with the other items in the batch pointing to it (see "Batches" below).
+### Est. time and Actual time
+
+**Est. time** is a rough figure for the whole pipeline (implement, test, review, ship), not just the coding. Typical ranges:
+
+- Light effort-1: 10-20 min
+- Opus effort-1: 15-25 min
+- Opus effort-2: 20-35 min
+- Effort-3 or Deep: 35-90+ min
+
+These are planning estimates, not measurements.
+
+Done rows record the **Tier** and an **Actual time**. That's a rough wall-clock figure for the whole run, including fix rounds and benchmark troubleshooting. A batch's Actual time is recorded once, on its first item, and the other items in the batch point to it.
+
+## Batches
+
+`triage` regroups every Ready item into batches each time it touches the backlog, and writes the **Batches** table at the top of `BACKLOG.md`. `B1` always holds the top Ready item, so a plain `/iterate` still follows priority order and brings along everything that can safely ship with it.
+
+Each batch has one **category** and one **tier**. The category decides which reviews the batch gets. They run once for the whole batch.
+
+| Category | What goes in it | Reviews | Max size |
+|---|---|---|---|
+| `ui` | CSS, layout, text, blurbs, UI affordances. No simulation change. | code-review + playtester | 15 (about 5 if the items are effort-2 features) |
+| `tooling` | Only `tests/`, `bench/` or `tools/`. The game doesn't change. | code-review only. No playtest or republish. | 15 |
+| `sim` | Gravity, collisions, sizes, masses, time-stepping, dust, life rules, or a scene's `build()`/`rate` | code-review + playtester + one physics-reviewer | 5 |
+| `perf` | Speed work that isn't Deep tier | code-review + playtester + benchmark focus (+ physics-reviewer if the simulation changes) | 5 |
+| `solo` | Deep tier, A/B experiments, effort 3, or anything that would conflict | That item's own full pipeline | 1 |
+
+**Grouping rules:**
+
+- A batch never mixes tiers, so Light items never pay for Opus.
+- Items that edit the same function stay apart.
+- Dependencies are respected: an item that builds on another comes after it.
+
+**Why the size limits:**
+
+- Bigger batches make it harder to tell which change broke a test or the benchmark.
+- Reviewers spread their attention thinner across a bigger diff.
+- Pulling one bad item out of a batch gets riskier as it grows.
+
+Simulation changes interact through shared physics, so `sim` and `perf` stay small. Small `ui` and `tooling` fixes rarely interact: the first 14-item batch shipped cleanly, which is why their cap was raised from 10 to 15 on 2026-09-28.
+
+**Batch estimates** aren't the sum of their items. Take the largest item's estimate, then add about 2-3 min per extra `ui`/`tooling` item, or about 5 min per extra `sim`/`perf` item. The first batch (14 `ui`/`tooling` items on 2026-09-28) took about 35 min, against an estimated 175-245 min run one item at a time.
+
+**Why there's no dedicated batching agent:** `triage` already rewrites the backlog after every audit and iteration, so grouping costs almost nothing extra, while a separate planner would add a model call to every run. `triage` runs at medium effort with a self-check. At low effort its first grouping broke its own rules.
+
+## `/iterate`: ship a batch
+
+1. **Pick.** Choose the batch: `B1` by default, or the batch or item you name.
+   - Claude says which batch it is, its category, tier, items, reviews and Est. time, then moves the items to In progress.
+   - If the Batches table is stale, `triage` regroups first.
+2. **Implement.** One implementer agent (the batch's tier) takes the whole batch and works through the items one at a time as isolated edits.
+   - For each item it makes the smallest change that delivers it, in `index.html`, and adds a check in `tests/harness.js` or `tests/invariants.js` for new behaviour.
+   - It runs the tests once at the end.
+   - Two agents never share a working tree.
+   - An item that turns out riskier than its category suggests is skipped and goes back to Ready.
+3. **Test.** `python tests/run_tests.py` must pass everywhere, and `python bench/run_bench.py --compare` must not regress by more than 5%.
+   - A stash/pop A/B test against the unchanged code tells a real regression apart from machine drift.
+4. **Review.** Run the batch's reviews once (see the table above), briefing each reviewer with the full item list.
+5. **Triage.** Blockers go back to the same implementer via SendMessage, then retest.
+   - An item that can't be fixed quickly is dropped from the batch rather than holding up the rest.
+   - Everything else goes to the backlog.
+6. **Ratchet the baseline** with `python bench/run_bench.py --baseline`, only if the numbers genuinely improved.
+   - Machine drift doesn't count. If a re-baseline is only needed because the machine slowed down, ask Luke first and commit it separately.
+7. **Finish.**
+   - Each item gets its own Done row: Tier, result and commit. The batch's Actual time goes on its first item.
+   - Commit per item when the diffs separate cleanly. Otherwise use one commit that lists every ID.
+   - Update `README.md` if controls or features changed.
+   - Commit and push. A hook reruns the tests and the benchmark comparison and blocks the push if either fails.
+   - If the game changed, run `python tools/build_artifact.py` and republish the artifact.
+   - `triage` regroups the remaining Ready items if anything was dropped or added.
+   - Claude reports what shipped as a table (ID, Tier, Est. time, change), then the Actual vs. Est. time, the test and benchmark numbers, and the next batch.
 
 ## `/audit`: find what to improve
 
 The most expensive command, so run it rarely: when the Ready list gets thin, or after a big feature lands.
 
-1. **Collect evidence.** Runs `python tests/run_tests.py --screens` (all checks plus screenshots) and `python bench/run_bench.py --compare`.
+1. **Collect evidence.** Runs `python tests/run_tests.py --screens` and `python bench/run_bench.py --compare`.
 2. **Send out the specialists in parallel.** perf-profiler, physics-reviewer, ux-reviewer, game-designer, efficiency-auditor, code-quality-reviewer and playtester each review the whole game, read-only. A finding without evidence is discarded.
-3. **Triage.** The `triage` agent drops findings without evidence, merges duplicates, scores priority and updates `BACKLOG.md`, keeping the status of existing items.
-4. **Report.** A summary of the headline numbers, the top five Ready items and anything that needs Luke's decision. It commits `BACKLOG.md` but doesn't push.
-
-## `/iterate`: ship one improvement
-
-The everyday command. `/iterate` takes the batch holding the top Ready item (see "Batches" below); `/iterate B3` takes a named batch and `/iterate PERF-002 solo` a single item.
-
-1. **Pick.** Move the item to In progress. If it's a big architectural choice, use the A/B worktree convention (below).
-2. **Choose the implementer tier and implement.** `/iterate` picks one of three agents to make the smallest change that delivers the item, in `index.html`, plus a check in `tests/harness.js` or `tests/invariants.js` for new behaviour:
-   - **Deep** (`implementer-deep`, Opus at high effort): the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
-   - **Opus** (`implementer-opus`, Opus at medium effort): a physics or perf area item, or anything at effort 2 or more.
-   - **Light** (`implementer`, Sonnet at medium effort): everything else.
-   - Luke can override the tier, for example "/iterate UX-005 on Opus".
-3. **Test.** `python tests/run_tests.py` must pass everywhere, and `python bench/run_bench.py --compare` must not regress by more than 5%.
-4. **Review.**
-   - `/code-review` on the diff, and fix what it finds.
-   - The `playtester` agent, always.
-   - The `physics-reviewer` agent if the simulation changed (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scenes). Deep-tier items already got Opus at high effort during implementation, so no separate high-effort physics pass is needed here.
-5. **Triage** the review findings. For blockers, send them back to the same implementer agent via SendMessage (then retest); send the rest to the backlog.
-6. **Ratchet the baseline** with `python bench/run_bench.py --baseline` if the benchmarks improved and nothing regressed.
-7. **Finish.** Move the item to Done with its result and commit hash, update `README.md` if controls or features changed, then commit and push. A hook reruns the tests and the benchmark comparison and blocks the push if either fails. Finally, `python tools/build_artifact.py` and republish the artifact.
+3. **Triage.** `triage` drops findings without evidence, merges duplicates, scores priority, gives each item a Tier and Est. time, regroups the batches, and updates `BACKLOG.md`, keeping the status of existing items.
+4. **Report.** A summary of the headline numbers, the top five Ready items, the batches and anything that needs Luke's decision. It commits `BACKLOG.md` but doesn't push.
 
 ## Choosing what to iterate on
 
-Running `/iterate` over and over works down the list in priority order, which is a sensible default. The score is a rough guide, though, so steer when you have something in mind:
+Running `/iterate` over and over works down the batches in priority order, which is a sensible default. Steer when you have something in mind:
 
-- **By theme.** Pick what you want the game to feel like next (more fun right away, better on phones, faster to load, more correct) and do that area's items back to back. The area column (`design`, `perf`, `ux`, `efficiency`, `physics`, `code`) is a good filter.
-- **By cost.** Items with effort 1 are cheap runs: small change, short review. Save effort 2 and 3 items for when a bigger step is worth the extra usage.
-- **By dependencies.** Some items build on others. Do the foundation first (for example, the "share this universe" link before a snapshot link that extends it).
-- **Fixes before features.** Something broken for players, like a wrong number or a hidden label, usually beats a new toy.
-- **Ask.** "What should I iterate next if I care about phones?" is cheap, and Claude will recommend IDs from the backlog.
-
-## Batches: how `/iterate` groups work (added 2026-09-28)
-
-`/iterate` ships a **batch** at a time, not a single item. `triage` groups the Ready items every time it touches the backlog and writes a **Batches** table at the top of `BACKLOG.md`. Each Ready row shows its Batch ID. `B1` always holds the top Ready item, so a plain `/iterate` still follows priority order. It just brings along everything that can safely ship with it.
-
-Each batch has one **category** and one **tier**. The category decides which reviews it gets, and they run once for the whole batch:
-
-| Category | What goes in it | Reviews | Max size |
-|---|---|---|---|
-| `ui` | CSS, layout, text, blurbs, UI affordances; no simulation change | code-review + playtester | 10 |
-| `tooling` | only `tests/`, `bench/`, `tools/`; the game doesn't change | code-review only; no playtest or republish | 10 |
-| `sim` | gravity, collisions, sizes, masses, time-stepping, dust, life rules, scene `build()`/`rate` | code-review + playtester + one physics-reviewer | 5 |
-| `perf` | speed work that isn't Deep tier | code-review + playtester + benchmark focus (+ physics-reviewer if sim touched) | 5 |
-| `solo` | Deep tier, A/B experiments, effort 3, or anything that would conflict | the item's own full pipeline | 1 |
-
-**Running batches:**
-
-- `/iterate` runs `B1`.
-- `/iterate B3` runs batch B3.
-- `/iterate UX-104` runs whatever batch UX-104 is in.
-- `/iterate UX-104 solo` runs just that item.
-- You can also drop items ("/iterate B2 without UX-104") or raise the tier ("/iterate B3 on Opus").
-
-**How a batch runs:**
-
-- One implementer agent takes the whole batch and works through the items one at a time as isolated edits. Two agents never share a working tree.
-- If an item turns out riskier than its category suggests, or can't be fixed quickly after review, it's dropped from the batch and goes back to Ready, and the rest ships.
-- Each item gets its own Done row. The batch's Actual time is recorded once, on its first item.
-- Commits are one per item when the diffs separate cleanly. Otherwise there's one commit for the batch, listing every ID.
-
-**Why there's no dedicated batching agent:** `triage` already reads and rewrites the backlog after every audit and iteration, so grouping adds almost nothing to what it costs. A separate planner would add a model call to every run. If `triage` (Sonnet, low effort) starts grouping badly, for example by putting items that edit the same function together, raise it to medium effort before adding an agent.
-
-**Batch estimates** aren't the sum of their items. Use the largest item's estimate plus about 2-3 min per extra `ui`/`tooling` item, or about 5 min per extra `sim`/`perf` item. The first batch, 14 `ui`/`tooling` items on 2026-09-28, took about 35 min, against an estimated 175-245 min for the same items run one at a time.
-
-## Supporting commands
-
-| Command | What it does |
-|---|---|
-| `python tests/run_tests.py` | All checks: three browsers, emulated phones, physics invariants. `--quick` for a quick load check, `--screens` to save screenshots to `tests/output/`. |
-| `python bench/run_bench.py` | Benchmarks. `--compare` checks against `bench/baseline.json`, and `--baseline` records a new one (only after a genuine improvement). |
-| `python tools/serve.py` | Serves the game at http://localhost:8765/ for the Playwright browser tool. |
-| `python tools/build_artifact.py` | Rebuilds `pocket-universe.html` for the claude.ai artifact. |
-| `/effort high` | For hard reasoning (integrator, collisions, determinism, spatial structures, threading). Return to medium afterwards. |
+- **By theme.** Pick what you want the game to feel like next (more fun right away, better on phones, faster to load, more correct) and run that category's batches. `ui` batches change what players see, `sim` batches change the physics.
+- **By cost.** Light batches are the cheapest. `tooling` batches are cheap too, since they skip the playtest and the republish. Save `solo` Deep items for when a big step is worth the usage.
+- **By dependencies.** Do the foundation first (for example, the batch with the "share this universe" link before the snapshot link that builds on it).
+- **Fixes before features.** Something broken for players usually beats a new toy.
+- **Ask.** "What should I iterate next if I care about phones?" is cheap, and Claude will recommend batches or items.
 
 ## A/B experiments
 
-For a big architectural choice, such as a quadtree versus a uniform grid, Canvas2D versus WebGL, or physics on the main thread versus a Worker, create two git worktrees, one per approach. Implement both minimally, benchmark each, keep the winner and record both results in the item's Done entry.
+For a big architectural choice, such as a quadtree versus a uniform grid, Canvas2D versus WebGL, or physics on the main thread versus a Worker:
+
+1. Create two git worktrees, one per approach.
+2. Implement both minimally and benchmark each.
+3. Keep the winner, and record both results in the item's Done entry.
+
+These are always `solo` batches on the Deep tier.
 
 ## Keeping usage down
 
-Each agent's model and effort are set in its file in `.claude/agents/` and listed in the Model & effort section of `CLAUDE.md`. The session itself defaults to Sonnet at medium effort (`.claude/settings.json`). `/iterate` routes implementation work to one of three implementer agents by tier (`implementer` on Sonnet, `implementer-opus` and `implementer-deep` on Opus), named explicitly so they keep their model regardless of the session's. `physics-reviewer` and `perf-profiler` do the same. Switch models at the start of a session rather than partway through, because prompt caching is per model. Beyond that:
+Each agent's model and effort are set in its file in `.claude/agents/` and listed in "Model & effort" in `CLAUDE.md`. The session defaults to Sonnet at medium effort (`.claude/settings.json`). The implementer agents name their model explicitly, so they keep it whatever the session runs on, and so do `physics-reviewer` and `perf-profiler`. Switch models at the start of a session rather than partway through, because prompt caching is per model. Beyond that:
 
-- Prefer many small `/iterate` runs to frequent audits.
+- Let batching do the work: one test, review and push cycle per batch instead of per item.
+- Prefer many `/iterate` runs to frequent audits.
 - Keep the session at medium effort, and use `/effort high` only where it's clearly needed.
-- Items with effort 1 cost the least. The expensive ones are architecture changes and anything that needs an A/B experiment.
+- The expensive work is `solo` Deep items and A/B experiments.
 
-## Example: three iterations
+## Example: three batches
 
-These use items from the 2026-09-27 audit.
+These use the batches as of 2026-09-28.
 
-1. **`/iterate`** takes the top item, `DESIGN-002`: give each scene its own starting speed so Cradle shows life in seconds, not about 162. It's a small change per scene plus a harness check. Scenes count as simulation, so the physics-reviewer runs, but it isn't an integrator change, so no high-effort pass. The playtester confirms Cradle pays off quickly on desktop and phone. Cost: low.
-2. **`/iterate PERF-002`**: stop resampling the parallax star tile every frame (phone frame time measured 64.0 → 37.1 ms with smoothing off). The benchmark comparison is the key step here, and the improvement ratchets the baseline. No physics review, since it only changes drawing. Cost: low.
-3. **`/iterate PERF-001`**: dust drawing is about 85% of every frame. This is an architecture choice (batched paths versus a pixel buffer or WebGL), so it follows the A/B worktree convention with `/effort high` for the design. Cost: medium to high, but it could get the `large` scene to 60 fps.
+1. **`/iterate`** runs `B1` (`tooling`, Opus): PERF-003, CODE-003 and EFF-004. It fixes the phone bench profile, has the tests read engine constants from the test hook, and makes the long-run bench able to see memory growth. Only test and bench code changes, so it gets a code review but no playtest and no republish. Est. 30-35 min.
+2. **`/iterate B4`** runs `B4` (`ui`, Light): CODE-006, DESIGN-009 and UX-104 (inspector flux display, undo the last throw, and the hint fade). It gets one code review and one playtester pass for all three. Est. 25-30 min.
+3. **`/iterate B6`** runs `B6` (`solo`, Deep): PERF-001, where dust drawing is about 85% of every frame. It's an architecture choice (batched paths versus a pixel buffer or WebGL), so it follows the A/B worktree convention on the Deep implementer. Est. 30-40 min, but it could get the `large` scene to 60 fps.

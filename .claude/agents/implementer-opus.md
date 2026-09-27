@@ -1,6 +1,6 @@
 ---
 name: implementer-opus
-description: Implements one Pocket Universe BACKLOG.md item as the smallest reasonable change. Opus tier for physics or perf items, or anything at effort 2+. Use from /iterate.
+description: Implements a Pocket Universe BACKLOG.md batch (or a single item) as the smallest reasonable changes, one isolated edit per item. Opus tier for physics or perf items, or anything at effort 2+. Use from /iterate.
 model: opus
 effort: medium
 tools: Bash, PowerShell, Read, Edit, Write, Glob, Grep

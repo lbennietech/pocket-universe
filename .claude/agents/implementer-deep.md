@@ -1,6 +1,6 @@
 ---
 name: implementer-deep
-description: Implements one Pocket Universe BACKLOG.md item as the smallest reasonable change. Deep tier for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers/threading, and A/B experiments. Use from /iterate.
+description: Implements a Pocket Universe BACKLOG.md batch (or a single item) as the smallest reasonable changes, one isolated edit per item. Deep tier for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers/threading, and A/B experiments. Use from /iterate.
 model: opus
 effort: high
 tools: Bash, PowerShell, Read, Edit, Write, Glob, Grep

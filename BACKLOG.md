@@ -2,7 +2,7 @@
 
 _Last audit: 2026-09-28_
 
-Every Ready and Done row carries two extra columns, added 2026-09-28: **Tier** (which `/iterate` implementer agent would take or took it — see "Model & effort" in `CLAUDE.md`) and **Est. time** (a rough estimate of how long the full `/iterate` pipeline takes for that item, from its area/effort/tier; not a measurement). See `docs/DEV_CYCLE.md` for how these are estimated and reported.
+Every Ready and Done row carries two extra columns, added 2026-09-28: **Tier** (which `/iterate` implementer agent would take or took it — see "Model & effort" in `CLAUDE.md`) and **Est. time** (a rough estimate of how long the full `/iterate` pipeline takes for that item, from its area/effort/tier; not a measurement). The **Batches** table and each Ready row's **Batch** column group items that `/iterate` ships together; `triage` regenerates them on every run. See `docs/DEV_CYCLE.md` for how all of these are estimated, grouped and reported.
 
 ## Batches
 

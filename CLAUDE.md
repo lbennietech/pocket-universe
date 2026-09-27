@@ -72,7 +72,7 @@ Checked by `tests/invariants.js`.
   - Opus at medium: `physics-reviewer`, `perf-profiler`, `implementer-opus`. The reviewers name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model. `implementer-opus` is used by `/iterate` for physics or perf area items, or anything at effort 2 or more.
   - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`, `implementer`, `triage`. `implementer` is used by `/iterate` for everything else (ux, design, efficiency or code items at effort 1). `triage` was raised from low on 2026-09-28: at low, its first batch grouping broke its own rules (it mixed tiers in one batch and left effort-3 items out of `solo`).
   - Sonnet at low: `efficiency-auditor`, `playtester`.
-- `/iterate` picks the implementer tier automatically per item (see its skill file); Luke can override it, for example "/iterate UX-005 on Opus". Deep-tier items already get Opus at high effort during implementation, so they don't also need a separate high-effort physics pass from the main session.
+- `/iterate` runs one batch at a time on that batch's implementer tier. `triage` never mixes tiers in a batch. Luke can override the tier, for example "/iterate B3 on Opus", or run one item alone ("/iterate UX-104 solo"). Deep-tier items already get Opus at high effort during implementation, so they don't also need a separate high-effort physics pass from the main session.
 - Run `/audit` rarely, since it's the most expensive command. Work the existing backlog down with `/iterate` first.
 
 ## Conventions
