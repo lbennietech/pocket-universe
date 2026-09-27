@@ -1,0 +1,109 @@
+{
+  "scenes": {
+    "small": {
+      "frames": 240,
+      "mean_ms": 4.176,
+      "p95_ms": 5.3,
+      "max_ms": 7.2,
+      "physics_ms": 0.105,
+      "render_ms": 4.048,
+      "heap_start_mb": 1.58,
+      "heap_end_mb": 1.79,
+      "heap_growth_mb": 0.21,
+      "bodies_end": 98,
+      "dust_end": 2000,
+      "non_finite": 0,
+      "rate": 4,
+      "cpu_slowdown": 1
+    },
+    "medium": {
+      "frames": 240,
+      "mean_ms": 13.586,
+      "p95_ms": 17.8,
+      "max_ms": 21.5,
+      "physics_ms": 0.402,
+      "render_ms": 13.155,
+      "heap_start_mb": 1.94,
+      "heap_end_mb": 2.0,
+      "heap_growth_mb": 0.06,
+      "bodies_end": 287,
+      "dust_end": 8000,
+      "non_finite": 0,
+      "rate": 4,
+      "cpu_slowdown": 1
+    },
+    "large": {
+      "frames": 120,
+      "mean_ms": 11.169,
+      "p95_ms": 15,
+      "max_ms": 16.2,
+      "physics_ms": 3.06,
+      "render_ms": 8.087,
+      "heap_start_mb": 2.51,
+      "heap_end_mb": 2.5,
+      "heap_growth_mb": -0.01,
+      "bodies_end": 975,
+      "dust_end": 4000,
+      "non_finite": 0,
+      "rate": 4,
+      "cpu_slowdown": 1
+    },
+    "collision-pileup": {
+      "frames": 240,
+      "mean_ms": 10.439,
+      "p95_ms": 13.9,
+      "max_ms": 16.8,
+      "physics_ms": 0.601,
+      "render_ms": 9.807,
+      "heap_start_mb": 2.07,
+      "heap_end_mb": 1.94,
+      "heap_growth_mb": -0.13,
+      "bodies_end": 28,
+      "dust_end": 2704,
+      "non_finite": 0,
+      "rate": 8,
+      "cpu_slowdown": 1
+    },
+    "long-run": {
+      "frames": 3000,
+      "mean_ms": 12.719,
+      "p95_ms": 16.6,
+      "max_ms": 21.2,
+      "physics_ms": 0.534,
+      "render_ms": 12.156,
+      "heap_start_mb": 2.13,
+      "heap_end_mb": 1.98,
+      "heap_growth_mb": -0.15,
+      "bodies_end": 99,
+      "dust_end": 6000,
+      "non_finite": 0,
+      "rate": 15.3,
+      "cpu_slowdown": 1
+    },
+    "medium-phone": {
+      "frames": 120,
+      "mean_ms": 78.267,
+      "p95_ms": 83.7,
+      "max_ms": 87.4,
+      "physics_ms": 2.383,
+      "render_ms": 75.751,
+      "heap_start_mb": 2.11,
+      "heap_end_mb": 2.11,
+      "heap_growth_mb": -0.0,
+      "bodies_end": 295,
+      "dust_end": 8000,
+      "non_finite": 0,
+      "rate": 4,
+      "cpu_slowdown": 4
+    }
+  },
+  "meta": {
+    "browser": "chromium 153.0.8010.12",
+    "date": "2026-09-27T16:42:36",
+    "commit": "63cac82"
+  },
+  "size": {
+    "index_html_kb": 116.6,
+    "index_html_gzip_kb": 35.1
+  }
+}

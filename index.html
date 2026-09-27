@@ -2699,7 +2699,9 @@
       tick(frames = 1, elapsedMs = 1000 / 60) { for (let i = 0; i < frames; i++) advance(elapsedMs); },
       physics(steps, dt = DT) { for (let i = 0; i < steps; i++) step(dt); },
       setRate, loadScene, makeBody, addTracer,
-      addBody(b) { bodies.push(b); lights = bodies.filter(o => o.kind === 'star'); accel(); pairs.length = 0; }
+      addBody(b) { bodies.push(b); },
+      settle() { lights = bodies.filter(o => o.kind === 'star'); accel(); pairs.length = 0; },
+      get pairs() { return pairs.length; }
     };
   }
 
