@@ -1,6 +1,6 @@
 # Pocket Universe
 
-A browser gravity sandbox by Luke Bennie. Everything in the game lives in `index.html`: plain HTML, CSS and JavaScript on a 2D canvas, with no build step and no dependencies beyond Google Fonts. It's published at https://lbennietech.github.io/pocket-universe/ from the `main` branch. `docs/ARCHITECTURE.md` explains how the code is laid out and how a frame flows.
+A browser gravity sandbox by Luke Bennie. Everything in the game lives in `index.html`: plain HTML, CSS and JavaScript on a 2D canvas, with no build step and no dependencies beyond Google Fonts. It's published at https://lbennietech.github.io/pocket-universe/ from the `main` branch. `docs/ARCHITECTURE.md` explains how the code is laid out and how a frame flows, and `docs/DEV_CYCLE.md` explains the audit and iterate workflow.
 
 ## Files
 
@@ -67,6 +67,12 @@ Checked by `tests/invariants.js`.
 - Use `/effort high` for hard reasoning (integrator changes, collision edge cases, determinism bugs, spatial-structure rewrites, threading or architecture changes), then return to medium.
 - Avoid xhigh and max: they're rarely worth it here and burn Pro usage limits fast.
 - Each agent's frontmatter sets its own model and effort. Don't change them without a reason. If an agent misses things or wastes usage, adjust one level at a time.
+- Opus is kept for the two agents whose work needs deep reasoning, and the rest run on Sonnet to save usage (set 2026-09-27):
+  - Opus at medium: `physics-reviewer`, `perf-profiler`. They name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model.
+  - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`.
+  - Sonnet at low: `efficiency-auditor`, `playtester`, `triage`.
+- Because `physics-reviewer` runs at medium, changes to the integrator, time-stepping, collisions and merges, or determinism also get a physics review in the main session at `/effort high`, in addition to the agent's review. If a physics bug gets past both and the tests, move the agent back to high.
+- Run `/audit` rarely, since it's the most expensive command. Work the existing backlog down with `/iterate` first.
 
 ## Conventions
 

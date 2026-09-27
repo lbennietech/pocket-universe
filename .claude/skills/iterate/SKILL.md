@@ -29,6 +29,7 @@ Make the **smallest reasonable change** that delivers the item, in `index.html` 
 - Run `/code-review` on the change and fix what it finds.
 - Run the `playtester` agent (always).
 - Run the `physics-reviewer` agent if the simulation changed (gravity, collisions, sizes, masses, time-stepping, dust, life rules or scenes).
+- If the change touches the integrator, time-stepping, collisions and merges, or determinism, also review the physics yourself at `/effort high` (the agent runs at medium to save usage).
 
 If the project's agents aren't available as agent types, run `general-purpose` agents told to follow the matching file in `.claude/agents/`.
 

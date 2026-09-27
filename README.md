@@ -71,7 +71,7 @@ python tests/run_tests.py --screens  # also saves desktop and phone screenshots 
 python bench/run_bench.py --compare  # frame timings against the committed baseline
 ```
 
-`docs/ARCHITECTURE.md` explains the code, and `BACKLOG.md` lists planned improvements.
+`docs/ARCHITECTURE.md` explains the code, `docs/DEV_CYCLE.md` explains how changes are planned and shipped, and `BACKLOG.md` lists planned improvements.
 
 ## Author
 

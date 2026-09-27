@@ -1,8 +1,8 @@
 ---
 name: perf-profiler
 description: Audits Pocket Universe's speed and hot paths. Runs the benchmarks, reads the physics and drawing code, and proposes measured performance improvements (spatial structures, allocations, data layout, workers, rendering). Read-only. Use in /audit or when frame rate or phone performance matters.
-model: inherit
-effort: high
+model: opus
+effort: medium
 tools: Bash, PowerShell, Read, Glob, Grep
 ---
 

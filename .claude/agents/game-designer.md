@@ -1,7 +1,7 @@
 ---
 name: game-designer
 description: Audits Pocket Universe for fun - the first 60 seconds, aha moments, missing toys and tools, scenes and scenarios, sharing and saving, emergent play - against the design pillars, and proposes small shippable ideas. Read-only. Use in /audit or when planning what to build next.
-model: inherit
+model: sonnet
 effort: medium
 tools: Bash, PowerShell, Read, Glob, Grep, mcp__playwright
 ---

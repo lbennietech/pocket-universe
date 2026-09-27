@@ -1,7 +1,7 @@
 ---
 name: code-quality-reviewer
 description: Whole-codebase review of Pocket Universe (not a diff) - structure, coupling, duplication, error handling, naming and consistency, and test coverage gaps in critical paths. Read-only. Use in /audit.
-model: inherit
+model: sonnet
 effort: medium
 tools: Bash, PowerShell, Read, Glob, Grep
 ---

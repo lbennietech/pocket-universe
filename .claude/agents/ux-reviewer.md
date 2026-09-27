@@ -1,7 +1,7 @@
 ---
 name: ux-reviewer
 description: Audits Pocket Universe's user experience from screenshots and live play at desktop and phone sizes - discoverability, clarity, feedback, hierarchy, onboarding, touch, keyboard, contrast and reduced motion. Read-only. Use in /audit or after UI changes.
-model: inherit
+model: sonnet
 effort: medium
 tools: Bash, PowerShell, Read, Glob, Grep, mcp__playwright
 ---

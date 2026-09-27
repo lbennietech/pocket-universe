@@ -1,8 +1,8 @@
 ---
 name: physics-reviewer
 description: Reviews changes to Pocket Universe's simulation for physics mistakes, numerical instability and performance problems. Use after changing gravity, collisions, sizes, masses, the speed or time-stepping, dust particles, life rules or scenes.
-model: inherit
-effort: high
+model: opus
+effort: medium
 tools: Bash, PowerShell, Read, Glob, Grep
 ---
 
