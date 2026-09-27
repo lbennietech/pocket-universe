@@ -228,13 +228,14 @@ def main():
         RESULTS.mkdir(exist_ok=True)
         LATEST.write_text(json.dumps(res, indent=2), encoding="utf-8")
     ok = budgets(res)
+    # compare against the old baseline before a new one replaces it
+    if a.compare:
+        ok = compare(res, a.threshold) and ok
     if a.baseline:
         if a.quick:
             sys.exit("Refusing to save a --quick run as the baseline.")
         BASELINE.write_text(json.dumps(res, indent=2), encoding="utf-8")
         print(f"\nSaved {BASELINE.relative_to(ROOT)}")
-    if a.compare:
-        ok = compare(res, a.threshold) and ok
     sys.exit(0 if ok else 1)
 
 

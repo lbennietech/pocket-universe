@@ -69,13 +69,17 @@
     const kms = P.YEAR / P.AU * 4.74;   // one velocity unit in km/s
 
     // 1. Determinism: same seed, same frames, identical state
-    const runSeeded = () => {
+    // 97 frames (not a multiple of the 6- and 30-frame cadences), with a
+    // different amount of play before each run, so leftover frame counters show up
+    const runSeeded = before => {
+      window.__puBuild('small', 9);
+      P.tick(before);
       window.__puBuild('medium', 42);
       P.setRate(40);
-      P.tick(300);
+      P.tick(97);
       return stateHash(P);
     };
-    const h1 = runSeeded(), h2 = runSeeded();
+    const h1 = runSeeded(0), h2 = runSeeded(13);
     check('deterministic: same seed and frames give an identical state', h1 === h2,
       { length: h1.length, firstDifference: h1 === h2 ? null : [...h1].findIndex((c, i) => c !== h2[i]) });
 

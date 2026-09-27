@@ -9,6 +9,10 @@ waits until the page responds, then exits and leaves the server running.
 
     python tools/serve.py          # start (or confirm) the server
     python tools/serve.py --stop   # stop a server this script started
+
+Inside a Windows virtualenv, python.exe is a launcher that starts the real
+interpreter as a child, so --stop may leave the server running; close it
+from Task Manager or use a non-venv Python.
 """
 import argparse
 import os
@@ -56,13 +60,15 @@ def main():
     proc = subprocess.Popen([sys.executable, "-m", "http.server", str(PORT), "--bind", "127.0.0.1"],
                             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                             creationflags=flags, start_new_session=os.name != "nt")
-    PIDFILE.write_text(str(proc.pid))
     for _ in range(50):
         if up():
+            # only remember a server that actually answered
+            PIDFILE.write_text(str(proc.pid))
             print(f"serving {URL} (pid {proc.pid})")
             return
         time.sleep(0.1)
-    sys.exit(f"server didn't come up on {URL}")
+    proc.kill()
+    sys.exit(f"server didn't come up on {URL} (is something else using port {PORT}?)")
 
 
 if __name__ == "__main__":

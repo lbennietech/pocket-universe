@@ -15,7 +15,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PUSH = re.compile(r"\bgit\b[^;&|\n]*\bpush\b")
+# `git push`, allowing global options in between (git -C dir push), but not
+# `push` as an argument or inside a message (git stash push, git log --grep push)
+PUSH = re.compile(r"\bgit(?:\s+(?:-C\s+\S+|-c\s+\S+|--?[\w-]+(?:=\S+)?))*\s+push\b")
 
 
 def run(args):
