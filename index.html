@@ -302,6 +302,14 @@
   }
   @media (max-width: 600px) {
     .top.inspecting .readout { display: none; }
+    /* on a phone the inspector takes the full width under the scene picker */
+    .top.inspecting .brand { display: none; }
+    .top.inspecting .side { width: 100%; }
+    #card { width: auto; justify-self: stretch; }
+  }
+  @media (max-width: 1100px) {
+    /* the hint and the inspector share the same space on narrow screens */
+    .top.inspecting ~ #hint { opacity: 0; }
   }
   @media (max-width: 480px) {
     .chip { padding: 0 7px; font-size: 12px; min-height: 34px; }

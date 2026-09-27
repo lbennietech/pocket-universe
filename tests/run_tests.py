@@ -3,184 +3,270 @@
 Pocket Universe: automated tests
 Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
 
-Plays the game in headless Chrome with scripted mouse, touch and keyboard
-input and checks what happens. Needs Python 3.10+ and Chrome or Edge; no
-packages to install.
+Plays the real index.html with Playwright (Python):
+  - in-page input checks (tests/harness.js) in Chromium, Firefox and WebKit
+    (Safari's engine) at desktop size
+  - real mouse input: drag to pan, Ctrl-drag to throw, click to inspect
+  - emulated phones (Pixel 7 on Chromium, iPhone 13 on WebKit): touch wording,
+    layout fits the screen, a real tap inspects, a real long press places
+  - physics invariants (tests/invariants.js)
 
-    python tests/run_tests.py             # input and simulation checks
-    python tests/run_tests.py --screens   # also save screenshots to tests/output/
+    python tests/run_tests.py                 # everything
+    python tests/run_tests.py --screens       # also save screenshots to tests/output/
+    python tests/run_tests.py --quick         # a few seconds: does the page load cleanly?
+    python tests/run_tests.py --browsers chromium   # limit the browsers
 
-Set CHROME=/path/to/browser if it isn't found automatically.
-Exits with 1 if any check fails or the page throws an error.
+Needs: pip install playwright && python -m playwright install chromium firefox webkit
+Exits with 1 if any check fails or a page throws an error.
 """
 import argparse
-import base64
 import json
-import os
-import re
-import shutil
-import subprocess
 import sys
-import tempfile
-import time
 from pathlib import Path
+
+from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS = ROOT / "tests"
 OUT = TESTS / "output"
+PAGE = (ROOT / "index.html").as_uri()
+DESKTOP = {"width": 1400, "height": 900}
+PHONES = [("Pixel 7", "chromium"), ("iPhone 13", "webkit")]
 
-# Runs before the game: turns on the test hook, drives animation frames from
-# timers (headless Chrome's virtual time doesn't fire requestAnimationFrame)
-# and records any uncaught error.
-HEAD_SHIM = (
-    "<script>window.__PU_TEST__=true;"
-    "window.requestAnimationFrame=cb=>setTimeout(()=>cb(performance.now()),16);"
-    "window.cancelAnimationFrame=id=>clearTimeout(id);"
-    "window.__errs=[];addEventListener('error',e=>{window.__errs.push(e.message+' (line '+e.lineno+')');});"
-    "</script>"
-)
-
-# (file name, harness query, virtual ms before the screenshot). Scene shots are
-# taken early so the hint and the scene description are still on screen.
+# (file name, harness query) for desktop screenshots
 DESKTOP_SHOTS = [
-    ("desktop-showcase", "scene=showcase", 30000),
-    ("desktop-galaxies", "scene=galaxies", 6000),
-    ("desktop-cradle", "scene=cradle&zoom=1", 6000),
-    ("desktop-feast", "scene=feast", 6000),
-    ("desktop-formation", "scene=formation&run=4000", 8000),
+    ("desktop-showcase", "scene=showcase"),
+    ("desktop-galaxies", "scene=galaxies"),
+    ("desktop-cradle", "scene=cradle&zoom=1"),
+    ("desktop-feast", "scene=feast"),
+    ("desktop-formation", "scene=formation&run=4000"),
 ]
 
-
-def find_browser():
-    env = os.environ.get("CHROME")
-    if env and Path(env).exists():
-        return env
-    candidates = [
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    ]
-    for c in candidates:
-        if Path(c).exists():
-            return c
-    for name in ("google-chrome", "chromium", "chromium-browser", "chrome", "msedge"):
-        found = shutil.which(name)
-        if found:
-            return found
-    sys.exit("Couldn't find Chrome or Edge. Set CHROME=/path/to/browser.")
+INIT = "window.__PU_TEST__ = true;\n" + (ROOT / "bench" / "scenes.js").read_text(encoding="utf-8") \
+    + "\n" + (TESTS / "invariants.js").read_text(encoding="utf-8")
+HARNESS = (TESTS / "harness.js").read_text(encoding="utf-8")
+SCREEN_POS = """(pred) => { const b = window.__pu.bodies.find(pred ? new Function('o', 'return ' + pred) : () => true),
+    c = window.__pu.cam; return [(b.x - c.x) * c.z + innerWidth / 2, (b.y - c.y) * c.z + innerHeight / 2]; }"""
 
 
-def build_page(tmp):
-    html = (ROOT / "index.html").read_text(encoding="utf-8")
-    if "<head>" not in html or "</body>" not in html:
-        sys.exit("index.html is missing <head> or </body>.")
-    harness = (TESTS / "harness.js").read_text(encoding="utf-8")
-    html = html.replace("<head>", "<head>\n" + HEAD_SHIM, 1)
-    html = html.replace("</body>", "<script>\n" + harness + "\n</script>\n</body>", 1)
-    page = tmp / "test.html"
-    page.write_text(html, encoding="utf-8")
-    return page
+class Results:
+    def __init__(self):
+        self.ok = True
+        self.passed = 0
+        self.total = 0
+
+    def add(self, name, passed, detail=None):
+        self.total += 1
+        self.passed += bool(passed)
+        self.ok = self.ok and bool(passed)
+        suffix = "" if passed or detail is None else "   " + json.dumps(detail, ensure_ascii=False)
+        print(f"{'ok  ' if passed else 'FAIL'}  {name}{suffix}", flush=True)
 
 
-def run_browser(browser, url, tmp, name, size="1400,900", budget=30000, shot=None):
-    """Load url headless and return the harness's PU_RESULTS object, or None."""
-    profile = tmp / ("profile-" + name)
-    args = [
-        browser, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
-        "--user-data-dir=" + str(profile), "--allow-file-access-from-files",
-        # Windows writes the console log to a file in the profile; elsewhere it goes to stderr
-        "--enable-logging" if os.name == "nt" else "--enable-logging=stderr", "--v=0",
-        "--virtual-time-budget=" + str(budget), "--window-size=" + size,
-    ]
-    if shot:
-        args.append("--screenshot=" + str(shot))
-    args.append(url)
-    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                            encoding="utf-8", errors="replace")
-    # On Windows the launcher can exit while the headless browser keeps
-    # running, so wait for the results (and the screenshot) to appear.
-    log = profile / "chrome_debug.log"
-    out, found = "", None
-    deadline = time.time() + 240
-    while time.time() < deadline:
-        if proc.poll() is not None and not out:
-            out = proc.stdout.read() or " "
-        text = out + (log.read_text(encoding="utf-8", errors="replace") if log.exists() else "")
-        found = found or re.search(r"PU_RESULTS ([A-Za-z0-9+/=]+)", text)
-        shot_done = not shot or (Path(shot).exists() and Path(shot).stat().st_size > 0)
-        if found and shot_done:
-            break
-        time.sleep(0.25)
-    time.sleep(1)   # let the browser finish writing and exit
-    if proc.poll() is None:
-        proc.kill()
-    return json.loads(base64.b64decode(found.group(1)).decode("utf-8")) if found else None
+def open_page(browser, errors, url=PAGE, clock=True, **ctx):
+    """A fresh page, on a fake clock unless clock=False; page errors go in `errors`."""
+    context = browser.new_context(**ctx)
+    page = context.new_page()
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.on("console", lambda m: m.type == "error" and errors.append("console: " + m.text))
+    page.add_init_script(INIT)
+    if clock:
+        page.clock.install()
+    page.goto(url)
+    page.wait_for_function("() => window.__pu")
+    return context, page
 
 
-def functional(browser, page, tmp):
-    res = run_browser(browser, page.as_uri() + "?mode=functional", tmp, "functional", shot=tmp / "functional.png")
-    if not res:
-        print("FAIL  the test page produced no results (it may not have loaded)")
-        return False
-    if res.get("crashed"):
-        print("FAIL  the harness crashed:\n" + res["crashed"])
-        return False
-    ok = True
-    for c in res["checks"]:
-        mark = "ok  " if c["pass"] else "FAIL"
-        ok = ok and c["pass"]
-        print(f"{mark}  {c['name']}" + ("" if c["pass"] else f"   {json.dumps(c['detail'], ensure_ascii=False)}"))
-    for e in res.get("errors", []):
-        ok = False
-        print("FAIL  page error: " + e)
-    passed = sum(c["pass"] for c in res["checks"])
-    print(f"\n{passed}/{len(res['checks'])} checks passed" + ("" if res.get("errors") == [] else ", page errors found"))
-    return ok
+def pump(page, cond, limit_ms=240000, step=250):
+    """Advance the fake clock until `cond` (a JS function) returns true."""
+    waited = 0
+    while not page.evaluate(cond):
+        if waited >= limit_ms:
+            return False
+        page.clock.run_for(step)
+        waited += step
+    return True
 
 
-def screens(browser, page, tmp):
+def body_count(page):
+    return page.evaluate("() => window.__pu.bodies.length")
+
+
+def harness_checks(browser, name, res):
+    errors = []
+    context, page = open_page(browser, errors, PAGE + "?mode=functional", viewport=DESKTOP)
+    page.add_script_tag(content=HARNESS)
+    if not pump(page, "() => !!window.__puResults"):
+        res.add(f"[{name}] harness finished", False, {"errors": errors[:5]})
+    else:
+        out = page.evaluate("() => window.__puResults")
+        if out.get("crashed"):
+            res.add(f"[{name}] harness ran", False, {"crash": out["crashed"]})
+        for c in out.get("checks", []):
+            res.add(f"[{name}] {c['name']}", c["pass"], c.get("detail"))
+    res.add(f"[{name}] no page errors (scripted input)", not errors, errors[:5])
+    context.close()
+
+
+def real_mouse_checks(browser, name, res):
+    errors = []
+    context, page = open_page(browser, errors, viewport=DESKTOP)
+    page.select_option("#scene", "empty")
+    page.clock.run_for(300)
+    cam0 = page.evaluate("() => window.__pu.cam.x")
+    page.mouse.move(700, 450)
+    page.mouse.down()
+    page.mouse.move(760, 450, steps=6)
+    page.mouse.move(820, 450, steps=6)
+    page.mouse.up()
+    page.clock.run_for(100)
+    panned = page.evaluate("() => window.__pu.cam.x") < cam0 - 50
+    res.add(f"[{name}] real mouse drag pans", panned and body_count(page) == 0)
+    mod = "Meta" if sys.platform == "darwin" else "Control"
+    page.keyboard.down(mod)
+    page.mouse.move(500, 300)
+    page.mouse.down()
+    page.clock.run_for(600)
+    page.mouse.move(520, 320, steps=5)
+    page.mouse.up()
+    page.keyboard.up(mod)
+    page.clock.run_for(100)
+    res.add(f"[{name}] real Ctrl-drag throws a planet", body_count(page) == 1, {"bodies": body_count(page)})
+    if body_count(page):
+        x, y = page.evaluate(SCREEN_POS, None)
+        page.mouse.click(x, y)
+        page.clock.run_for(200)
+        res.add(f"[{name}] real click inspects", page.is_visible("#card"))
+    res.add(f"[{name}] no page errors (real mouse)", not errors, errors[:5])
+    context.close()
+
+
+def phone_checks(pw, device, engine, res):
+    errors = []
+    browser = getattr(pw, engine).launch()
+    context, page = open_page(browser, errors, **pw.devices[device])
+    tag = f"[{device}]"
+    page.clock.run_for(500)
+    res.add(f"{tag} touch wording in the hint", "Touch and hold" in page.inner_text("#hint"))
+    fits = page.evaluate("""() => {
+        const w = innerWidth, bad = [];
+        for (const el of document.querySelectorAll('.dock button, .dock input, #scene, #help, #restart')) {
+          const r = el.getBoundingClientRect();
+          if (r.width && (r.left < -1 || r.right > w + 1)) bad.push(el.id || el.textContent.trim() || el.tagName);
+        }
+        const h = document.getElementById('hint').getBoundingClientRect();
+        if (h.left < -1 || h.right > w + 1) bad.push('hint');
+        return { width: w, scrollWidth: document.documentElement.scrollWidth, offscreen: bad };
+    }""")
+    res.add(f"{tag} layout fits the screen", fits["scrollWidth"] <= fits["width"] and not fits["offscreen"], fits)
+    # a real tap on the Sun in Cradle of life opens the inspector
+    page.select_option("#scene", "cradle")
+    page.clock.run_for(300)
+    x, y = page.evaluate(SCREEN_POS, "o.kind === 'star'")
+    page.tap("#sky", position={"x": x, "y": y})
+    page.clock.run_for(300)
+    res.add(f"{tag} real tap inspects", page.is_visible("#card"))
+    card = page.evaluate("() => { const r = document.getElementById('card').getBoundingClientRect(); return [r.left, r.right, innerWidth]; }")
+    res.add(f"{tag} inspector fits the screen", card[0] >= -1 and card[1] <= card[2] + 1, {"left": card[0], "right": card[1], "width": card[2]})
+    if engine == "chromium":
+        # a real long press (Chromium touch events) places a planet
+        n0 = body_count(page)
+        cdp = context.new_cdp_session(page)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": 80, "y": 420}]})
+        page.clock.run_for(900)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        page.clock.run_for(200)
+        res.add(f"{tag} real touch-and-hold places a body", body_count(page) == n0 + 1,
+                {"before": n0, "after": body_count(page)})
+    res.add(f"{tag} no page errors", not errors, errors[:5])
+    context.close()
+    browser.close()
+
+
+def invariant_checks(browser, res):
+    errors = []
+    context, page = open_page(browser, errors, clock=False, viewport=DESKTOP)
+    for c in page.evaluate("() => window.__puInvariants()"):
+        res.add(f"[physics] {c['name']}", c["pass"], c.get("detail"))
+    res.add("[physics] no page errors", not errors, errors[:5])
+    context.close()
+
+
+def screenshots(pw):
     OUT.mkdir(exist_ok=True)
     for old in OUT.glob("*.png"):
         old.unlink()
-    ok = True
-    for name, query, budget in DESKTOP_SHOTS:
-        shot = OUT / (name + ".png")
-        res = run_browser(browser, page.as_uri() + "?mode=visual&" + query, tmp, name, budget=budget, shot=shot)
-        errs = (res or {}).get("errors", ["no results"])
-        ok = ok and not errs
-        print(f"saved {shot.relative_to(ROOT)}" + (f"   ERRORS: {errs}" if errs else ""))
-    # Phones: iframes give exact 390 px and 600 px wide layouts, which a
-    # headless window can't be made narrow enough to show.
-    frame = tmp / "phones.html"
-    src = page.as_uri() + "?mode=visual&scene=galaxies"
-    frame.write_text(
-        '<!doctype html><body style="margin:0;background:#333">'
-        f'<iframe src="{src}" style="width:390px;height:844px;border:0;position:absolute;left:0;top:0"></iframe>'
-        f'<iframe src="{src}&w=600" style="width:600px;height:844px;border:0;position:absolute;left:410px;top:0"></iframe>'
-        "</body>", encoding="utf-8")
-    shot = OUT / "phone-390-and-600.png"
-    run_browser(browser, frame.as_uri(), tmp, "phones", size="1030,860", budget=8000, shot=shot)
-    print(f"saved {shot.relative_to(ROOT)}")
-    print("\nNote: desktop screenshots are scaled from a slightly smaller viewport, so circles look about 10% "
-          "taller than wide. That's the screenshot, not the game. The phone image is not scaled.")
-    return ok
+    browser = pw.chromium.launch()
+    for name, query in DESKTOP_SHOTS:
+        errors = []
+        context, page = open_page(browser, errors, PAGE + "?mode=visual&" + query, viewport=DESKTOP)
+        page.add_script_tag(content=HARNESS)
+        pump(page, "() => !!window.__puResults")
+        page.clock.run_for(100)
+        page.screenshot(path=str(OUT / f"{name}.png"))
+        print(f"saved tests/output/{name}.png" + (f"   ERRORS: {errors[:3]}" if errors else ""))
+        context.close()
+    browser.close()
+    for device, engine in PHONES:
+        browser = getattr(pw, engine).launch()
+        errors = []
+        context, page = open_page(browser, errors, **pw.devices[device])
+        page.clock.run_for(2500)
+        slug = device.lower().replace(" ", "-")
+        page.screenshot(path=str(OUT / f"phone-{slug}.png"))
+        # and with the inspector open on the Sun in Cradle of life
+        page.select_option("#scene", "cradle")
+        page.clock.run_for(300)
+        x, y = page.evaluate(SCREEN_POS, "o.kind === 'star'")
+        page.tap("#sky", position={"x": x, "y": y})
+        page.clock.run_for(600)
+        page.screenshot(path=str(OUT / f"phone-{slug}-inspector.png"))
+        print(f"saved tests/output/phone-{slug}.png and phone-{slug}-inspector.png"
+              + (f"   ERRORS: {errors[:3]}" if errors else ""))
+        context.close()
+        browser.close()
+
+
+def quick(pw, res):
+    errors = []
+    browser = pw.chromium.launch()
+    context, page = open_page(browser, errors, viewport=DESKTOP)
+    page.clock.run_for(1500)
+    ran = page.evaluate("() => { window.__pu.tick(30); return window.__pu.simTime > 0; }")
+    res.add("page loads and runs", ran)
+    res.add("no page errors", not errors, errors[:5])
+    context.close()
+    browser.close()
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--screens", action="store_true", help="also save screenshots to tests/output/")
-    args = ap.parse_args()
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # Windows consoles default to cp1252
-    browser = find_browser()
-    with tempfile.TemporaryDirectory(prefix="pu-tests-", ignore_cleanup_errors=True) as t:
-        tmp = Path(t)
-        page = build_page(tmp)
-        ok = functional(browser, page, tmp)
-        if args.screens:
-            print()
-            ok = screens(browser, page, tmp) and ok
-    sys.exit(0 if ok else 1)
+    ap.add_argument("--quick", action="store_true", help="only check the page loads without errors")
+    ap.add_argument("--browsers", default="chromium,firefox,webkit")
+    a = ap.parse_args()
+    res = Results()
+    engines = [b.strip() for b in a.browsers.split(",") if b.strip()]
+    with sync_playwright() as pw:
+        if a.quick:
+            quick(pw, res)
+        else:
+            for engine in engines:
+                browser = getattr(pw, engine).launch()
+                harness_checks(browser, engine, res)
+                real_mouse_checks(browser, engine, res)
+                if engine == "chromium":
+                    invariant_checks(browser, res)
+                browser.close()
+            for device, engine in PHONES:
+                if engine in engines:
+                    phone_checks(pw, device, engine, res)
+            if a.screens:
+                print()
+                screenshots(pw)
+    print(f"\n{res.passed}/{res.total} checks passed")
+    sys.exit(0 if res.ok else 1)
 
 
 if __name__ == "__main__":

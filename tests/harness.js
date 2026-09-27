@@ -2,9 +2,9 @@
  * Pocket Universe: in-page test harness
  * Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
  *
- * run_tests.py injects this into a copy of index.html. It drives the game with
- * synthetic mouse, touch and keyboard input and logs the results to the
- * console as base64 JSON on a line starting "PU_RESULTS".
+ * run_tests.py injects this into the page. It drives the game with synthetic
+ * mouse, touch and keyboard input and leaves its results in
+ * window.__puResults. (Real browser input is tested from run_tests.py.)
  *
  *   ?mode=functional           input and simulation checks (the default)
  *   ?mode=visual&scene=<key>   set up a scene, pause it and wait for a screenshot
@@ -35,7 +35,7 @@
   function report(obj) {
     obj.errors = window.__errs || [];
     obj.viewport = `${innerWidth}x${innerHeight}`;
-    console.log('PU_RESULTS ' + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))));
+    window.__puResults = obj;
   }
 
   async function functional() {
@@ -315,7 +315,7 @@
     return { mode, scene };
   }
 
-  (async () => {
+  const start = async () => {
     let out;
     try {
       out = mode === 'visual' ? await visual() : await functional();
@@ -323,5 +323,7 @@
       out = { mode, crashed: String(err && err.stack || err) };
     }
     report(out);
-  })();
+  };
+  // run once the game has started
+  if (document.readyState === 'complete') start(); else addEventListener('load', start);
 })();
