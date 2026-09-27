@@ -9,10 +9,16 @@ A browser gravity sandbox. There is no build step, no package manager and no run
 | Path | What it is |
 |---|---|
 | `index.html` | The whole game: CSS, markup and one script (about 2,600 lines, 34 KB gzipped). |
-| `tests/run_tests.py` | Test runner (Python 3.10+, standard library only). Loads a copy of the game in headless Chrome or Edge, runs the in-page checks and optionally saves screenshots. |
-| `tests/harness.js` | The in-page checks: synthetic mouse, touch and keyboard input, plus regression checks. |
+| `tests/run_tests.py` | Playwright (Python) test runner: in-page checks in Chromium, Firefox and WebKit, real mouse input, emulated Pixel 7 and iPhone 13, physics invariants, screenshots. |
+| `tests/harness.js` | In-page input checks (synthetic mouse, touch and keyboard) and regression checks. |
+| `tests/invariants.js` | Physics invariants: determinism, energy and momentum conservation, NaN under stress, tunnelling, step-size stability. |
+| `bench/run_bench.py`, `bench/scenes.js` | Benchmarks on seeded scenes, with a committed baseline (`bench/baseline.json`) and a 5% regression gate. |
 | `tools/build_artifact.py` | Rebuilds `pocket-universe.html` (gitignored), the copy published to claude.ai. |
-| `.claude/agents/` | Review agents: `playtester`, `physics-reviewer`. |
+| `tools/serve.py` | Local server on port 8765 for the Playwright browser tool (`.mcp.json`). |
+| `.claude/agents/` | Review and audit agents (playtester, physics-reviewer, perf-profiler, ux-reviewer, game-designer, efficiency-auditor, code-quality-reviewer, triage). |
+| `.claude/skills/` | `/audit` and `/iterate`. |
+| `.claude/hooks/`, `.claude/settings.json` | Automatic checks: a quick load check after edits, the tests and benchmark gate before `git push`, and a guard on the baseline. |
+| `BACKLOG.md` | Prioritised improvements from audits. |
 | `CLAUDE.md` | Project guide and pre-push routine for Claude Code. |
 
 ## Code layout inside `index.html`
@@ -68,14 +74,16 @@ Input events change state directly (camera, aim, selection). The simulation read
 
 ## Determinism
 
-Not deterministic today. The timestep follows real frame time, and scenes, planet styles, dust and effects use `Math.random`. Reproducible runs would need a seeded random-number generator and a fixed-step mode that only tests use.
+Everything that shapes the simulation draws from `rand()`, which is `Math.random` in normal play. Tests and benchmarks seed it (`__pu.seed`), stop the real-time loop (`__pu.stopLoop`) and drive whole frames with a fixed elapsed time (`__pu.tick`), so a seed plus a number of frames always gives an identical state. Only visual noise (screen shake, the background star field) still uses `Math.random`.
 
 ## Test and build commands
 
 ```
-python tests/run_tests.py            # 31 checks in headless Chrome, about 2 minutes
+python tests/run_tests.py            # everything, about 2 minutes
 python tests/run_tests.py --screens  # also saves desktop and phone screenshots to tests/output/
+python tests/run_tests.py --quick    # a few seconds: does the page load and run cleanly?
+python bench/run_bench.py --compare  # benchmarks against the baseline
 python tools/build_artifact.py       # rebuild the claude.ai copy
 ```
 
-There's no build. Deploy means pushing `main`, which GitHub Pages serves.
+Setup, once per machine: `pip install playwright` and `python -m playwright install chromium firefox webkit`. There's no build. Deploy means pushing `main`, which GitHub Pages serves.

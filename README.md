@@ -60,12 +60,18 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 
 ## Development
 
-The game is `index.html`; there's nothing to build. To check a change, run the automated tests, which need Python 3.10+ and Chrome or Edge:
+The game is `index.html`; there's nothing to build. The tests and benchmarks use Playwright for Python:
 
 ```
-python tests/run_tests.py            # scripted mouse, touch and keyboard checks
+pip install playwright
+python -m playwright install chromium firefox webkit
+
+python tests/run_tests.py            # Chromium, Firefox and WebKit, phones, physics invariants
 python tests/run_tests.py --screens  # also saves desktop and phone screenshots to tests/output/
+python bench/run_bench.py --compare  # frame timings against the committed baseline
 ```
+
+`docs/ARCHITECTURE.md` explains the code, and `BACKLOG.md` lists planned improvements.
 
 ## Author
 
