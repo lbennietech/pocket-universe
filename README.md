@@ -24,7 +24,7 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 | Center or follow, restart, stop inspecting | `F`, `R`, `Esc` | Dock buttons |
 | Show the controls and the scene's description again | `H` or the **?** button | **?** button |
 
-**Speed.** The slider runs from about 3 hours to more than a year of simulated time per real second. It starts at 9 days a second, and the readout shows the current rate.
+**Speed.** The slider runs from about 3 hours to more than a year of simulated time per real second. It starts at 9 days a second, faster for slow-payoff scenes like Cradle of life and Solar system forming so something happens within seconds of loading them, and the readout shows the current rate.
 
 **Sizes.** Holding still grows the object smoothly from its default toward its maximum in about four seconds. The ring around it shows how far along the range you are.
 
@@ -38,10 +38,10 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 ## Scenes
 
 - **Galaxies collide**: two spiral galaxies pass through each other and throw off tidal tails.
-- **Cradle of life**: a calm solar system with two worlds in the habitable zone. Turn the speed up and wait.
+- **Cradle of life**: a calm solar system with two worlds in the habitable zone. Starts at a faster speed so life turns up within seconds; turn it up further and wait.
 - **Black hole feast**: stars on plunging orbits around a 10 M☉ black hole. The ones that get too close are shredded.
 - **Figure eight**: three equal stars chasing each other on the figure-eight orbit found by Cris Moore in 1993.
-- **Solar system forming**: a young Sun in a disk of planetesimals that collide and grow into planets.
+- **Solar system forming**: a young Sun in a disk of planetesimals that collide and grow into planets. Starts at a faster speed so the first collisions show up quickly.
 - **Binary star**: two suns with four circumbinary planets.
 - **Mayhem**: twelve heavy stars in a tight cluster.
 - **Empty space**: a blank canvas.

@@ -6,7 +6,6 @@ _Last audit: 2026-09-27_
 
 | ID | Area | Title | Impact | Effort | Priority | Evidence |
 |----|------|-------|--------|--------|----------|----------|
-| DESIGN-002 | design | Per-scene starting speed so Cradle/Formation pay off in seconds | 5 | 1 | 5.00 | index.html:456,1394; Cradle first life at 162s default vs 3.5s at max rate |
 | PERF-002 | perf | Parallax star tile bilinearly resampled every frame | 4 | 1 | 4.00 | index.html:2505-2507; phone 64.0→37.1ms with smoothing off |
 | PERF-003 | perf | Phone bench underestimates real phones ~1.7×; nothing above default speed | 4 | 1 | 4.00 | bench/run_bench.py:44,131; 412×915 dsf2.625 measured 123-139ms vs 75-89 |
 | EFF-001 | efficiency | Web fonts download 3.5× more than the game itself | 4 | 1 | 4.00 | index.html:24; 123.8KB woff2+11.4KB CSS vs 35.2KB game |
@@ -32,6 +31,8 @@ _Last audit: 2026-09-27_
 | UX-101 | ux | Habitable-zone labels can draw under the readout HUD on phones | 2 | 1 | 2.00 | scratch\playtest\shots\zoom-zone-label-check.png vs zoom-zone-label-check-desktop.png |
 | CODE-011 | code | Repeated magic predicates, palette indices and zoom limits | 2 | 1 | 2.00 | index.html:797,1109,2636 (heavy-body test); 501,1167,2196 (probe colour); 1413,1475,1724 (zoom clamp) |
 | CODE-012 | code | Test/bench runners crash with raw tracebacks when Playwright/browser missing | 2 | 1 | 2.00 | tests/run_tests.py:27,256,146; bench/run_bench.py:29 (unguarded imports/launch) |
+| PERF-007 | perf | Formation's opening seconds cost ~2x per frame at its new starting rate | 2 | 1 | 2.00 | index.html:1305,2636-2642; desktop 2.6/1.2ms (rate4) vs 5.8/5.1ms (rate60); phone profile 12.9/8.6ms vs 26.7/23.6ms; per PERF-003 real phones ~1.7x slower, opening frames could hit ~40-45ms for ~10-20s until mergers (280→81 bodies by sim time 1000) |
+| DESIGN-012 | design | Cradle/Formation blurbs still tell the player to turn the speed up | 2 | 1 | 2.00 | index.html:1249 ("Slide the speed up...") and 1306 ("Turn the speed up...") vs new default rate 60 (DESIGN-002) |
 | UX-001 | ux | On phones panels leave less than half the screen for the sky | 4 | 2 | 2.00 | scratch\ux\pixel-mayhem-8s.png; tests/output/phone-iphone-13.png; index.html:1858 |
 | DESIGN-003 | design | Click an event in the feed to fly the camera to it | 4 | 2 | 2.00 | index.html:1843,1856; scratch\play\mayhem-10s.png |
 | PHYS-001 | physics | Formation scene makes brown dwarfs, not habitable planets; life stuck at Jupiter mass | 4 | 2 | 2.00 | index.html:1309-1319 (disk 0.13 M☉), seeds 1-3 largest body 61.6-72.5 M♃ by 50yr, 0 living worlds after 300yr; LIFE_MIN=10 units≈0.87 M♃ (index.html:460); rocky look only below 2 units (660-664) (merged DESIGN-005) |
@@ -62,6 +63,7 @@ _Last audit: 2026-09-27_
 
 | ID | Title | Result (metric delta / notes) | Commit |
 |----|-------|-------------------------------|--------|
+| DESIGN-002 | Per-scene starting speed so Cradle/Formation pay off in seconds | Cradle/Formation now start the speed slider at rate 60 instead of RATE_DEFAULT (4), so their first payoff shows within seconds instead of ~162s; restart preserves a manually-set rate (loadScene(key, isRestart)); other scenes unaffected. Render also got noticeably faster from an unrelated env variance, baseline re-recorded (medium 13.59→11.43ms, medium-phone 78.27→49.48ms). 136/136 tests pass. | (pending push) |
 
 ## Rejected / won't do
 

@@ -1245,6 +1245,7 @@
     cradle: {
       fit: 430,
       zones: true,
+      rate: 60,   // life normally takes ~162s at RATE_DEFAULT; start faster so it shows up in seconds
       blurb: 'A quiet Sun with two worlds inside its habitable zone, shown in green. Slide the speed up, give them time and see if life takes hold. Tap a planet to watch it.',
       build() {
         bodies.push(makeBody(0, 0, 0, 0, MSUN, 'star'));
@@ -1301,6 +1302,7 @@
     },
     formation: {
       fit: 1000,
+      rate: 60,   // planetesimal collisions and life are slow at RATE_DEFAULT; start faster to pay off sooner
       blurb: 'A young Sun inside a disk of rocky planetesimals. Collisions slowly build planets, and the ones that land in the habitable zone might grow life. Turn the speed up to watch it happen.',
       build() {
         const sun = makeBody(0, 0, 0, 0, MSUN, 'star');
@@ -1391,7 +1393,7 @@
     }
   };
 
-  function loadScene(key) {
+  function loadScene(key, isRestart = false) {
     sceneKey = key;
     bodies = [];
     effects = [];
@@ -1413,6 +1415,7 @@
     // a hidden or collapsed page has no size yet; fall back to a sane zoom
     cam.z = VW && VH ? clamp(Math.min(VW, VH) * 0.46 / SCENES[key].fit, 0.02, 12) : 0.5;
     if (SCENES[key].zones && !showZones) toggleZones();
+    if (!isRestart) setRate(SCENES[key].rate || RATE_DEFAULT);
     feed.textContent = '';
     for (const k in lastEv) delete lastEv[k];
     pushEvent(SCENES[key].blurb, 'info');
@@ -1994,7 +1997,7 @@
   $('zones').addEventListener('click', toggleZones);
   $('assist').addEventListener('click', toggleAssist);
   $('center').addEventListener('click', centerView);
-  $('restart').addEventListener('click', () => loadScene(sceneKey));
+  $('restart').addEventListener('click', () => loadScene(sceneKey, true));
   $('help').addEventListener('click', showHelp);
   $('scene').addEventListener('change', e => { loadScene(e.target.value); e.target.blur(); });
   cFollow.addEventListener('click', () => setFollow(!follow));
@@ -2020,7 +2023,7 @@
       '4': () => setTool('bh'), '5': () => setTool('dust'),
       '[': () => nudgeRate(-25), ']': () => nudgeRate(25),
       t: toggleTrails, g: toggleWarp, z: toggleZones, o: toggleAssist,
-      f: centerView, r: () => loadScene(sceneKey), h: showHelp, '?': showHelp,
+      f: centerView, r: () => loadScene(sceneKey, true), h: showHelp, '?': showHelp,
       '=': () => zoomAt(VW / 2, VH / 2, cam.z * 1.25), '+': () => zoomAt(VW / 2, VH / 2, cam.z * 1.25),
       '-': () => zoomAt(VW / 2, VH / 2, cam.z / 1.25), '_': () => zoomAt(VW / 2, VH / 2, cam.z / 1.25)
     };

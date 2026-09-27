@@ -48,6 +48,48 @@
     check('starts empty at default speed', P().bodies.length === 0 && P().rate === 4,
       { bodies: P().bodies.length, rate: P().rate, label: $('speedLabel').textContent });
 
+    // Slow-payoff scenes start faster than the global default, so life shows up sooner
+    loadScene('cradle');
+    await wait(100);
+    const cradleRate = P().rate;
+    $('speed').value = 900; $('speed').dispatchEvent(new Event('input'));
+    const cradleManual = P().rate;
+    loadScene('empty');
+    await wait(100);
+    check('cradle starts faster than the global default, and the slider still works after',
+      cradleRate > 4 && cradleManual > cradleRate && P().rate === 4,
+      { cradleRate: r2(cradleRate), cradleManual: r2(cradleManual), resetRate: P().rate });
+
+    // Restarting the same scene should keep the player's chosen speed, not
+    // reset it to the scene's starting rate (a scene switch still should).
+    loadScene('cradle');
+    await wait(100);
+    $('speed').value = 900; $('speed').dispatchEvent(new Event('input'));
+    const beforeRestart = P().rate;
+    $('restart').dispatchEvent(new Event('click'));
+    await wait(100);
+    check('restarting the same scene preserves a manually-set speed',
+      P().rate === beforeRestart,
+      { beforeRestart: r2(beforeRestart), afterRestart: r2(P().rate) });
+    loadScene('empty');
+    await wait(100);
+
+    // Calling loadScene with the same key it's already on (as happens
+    // coincidentally on the very first boot call) must NOT be mistaken for a
+    // restart unless the caller explicitly says so — it should still apply
+    // the scene's starting rate, not preserve a manually-set one.
+    loadScene('cradle');
+    await wait(100);
+    $('speed').value = 900; $('speed').dispatchEvent(new Event('input'));
+    const beforeReload = P().rate;
+    P().loadScene('cradle');
+    await wait(100);
+    check('loading a scene that happens to match the current key, without an explicit restart flag, still applies its starting rate',
+      beforeReload !== 60 && P().rate === 60,
+      { beforeReload: r2(beforeReload), afterReload: r2(P().rate) });
+    loadScene('empty');
+    await wait(100);
+
     // Mouse: plain left drag moves the view and places nothing
     const cx0 = P().cam.x;
     pe('pointerdown', 700, 450); pe('pointermove', 710, 450); pe('pointermove', 800, 450); pe('pointerup', 800, 450);
