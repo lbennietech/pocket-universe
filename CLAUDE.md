@@ -1,6 +1,6 @@
 # Pocket Universe
 
-A browser gravity sandbox by Luke Bennie. Everything in the game lives in `index.html`: plain HTML, CSS and JavaScript on a 2D canvas, with no build step and no dependencies beyond Google Fonts. It's published at https://lbennietech.github.io/pocket-universe/ from the `main` branch. `docs/ARCHITECTURE.md` explains how the code is laid out and how a frame flows, and `docs/DEV_CYCLE.md` explains the audit and iterate workflow.
+A browser gravity sandbox by Luke Bennie. Today everything in the game lives in `index.html`: plain HTML, CSS and JavaScript on a 2D canvas, with no build step and no dependencies beyond Google Fonts. Keeping it in a single file is not a rule (Luke dropped that on 2026-09-28): the game may be split into several files, with a build step if one earns its place (see CODE-014 in `BACKLOG.md`). The one hard requirement is that it stays playable at the GitHub Pages URL below. It's published at https://lbennietech.github.io/pocket-universe/ from the `main` branch. `docs/ARCHITECTURE.md` explains how the code is laid out and how a frame flows, and `docs/DEV_CYCLE.md` explains the audit and iterate workflow.
 
 ## Files
 
@@ -49,9 +49,10 @@ Checked by `tests/invariants.js`.
 ### Design pillars
 
 1. **Toys over goals.** A sandbox to play with, not levels to beat. New features add toys and scenes, not scores or objectives.
+   - **The sandbox is the game; the pre-built scenes are a demo of it (Luke, 2026-09-28).** Empty space and free play, where a player builds their own organic scenario from the toys, is the heart of Pocket Universe. The named scenes (Cradle, Formation, Binary, Mayhem, ...) exist to show new players what the sandbox can do, not as the main content. When a change would improve one at the expense of the other, favour the free sandbox: e.g. a toy, a control or a piece of physics that makes player-built scenarios more capable or fun outweighs polish on a scripted scene, and any per-scene special-casing (like PERF-012's scene-dependent speed ceiling) is a bug to fix, not a feature to lean on.
 2. **One click to chaos.** Something dramatic (collisions, supernovae, black holes) is always one action away.
 3. **Readable at a glance.** Sizes, colours, trails, labels and the inspector make the physics understandable without reading a manual.
-4. **Real-ish physics, works everywhere.** Real units and plausible behaviour, in one file with no install, equally good on phone and desktop.
+4. **Real-ish physics, works everywhere.** Real units and plausible behaviour, playable in the browser with no install, equally good on phone and desktop.
 
 ### Workflow
 
@@ -68,11 +69,10 @@ Checked by `tests/invariants.js`.
 - Avoid xhigh and max: they're rarely worth it here and burn Pro usage limits fast.
 - Each agent's frontmatter sets its own model and effort. Don't change them without a reason. If an agent misses things or wastes usage, adjust one level at a time.
 - Opus is kept for the agents whose work needs deep reasoning, and the rest run on Sonnet to save usage (set 2026-09-27, implementer tiers added 2026-09-27):
-  - Opus at high: `implementer-deep`. Used by `/iterate` for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
-  - Opus at medium: `physics-reviewer`, `perf-profiler`, `implementer-opus`. The reviewers name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model. `implementer-opus` is used by `/iterate` for physics or perf area items, or anything at effort 2 or more.
-  - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`, `implementer`, `triage`. `implementer` is used by `/iterate` for everything else (ux, design, efficiency or code items at effort 1). `triage` was raised from low on 2026-09-28: at low, its first batch grouping broke its own rules (it mixed tiers in one batch and left effort-3 items out of `solo`).
-  - Sonnet at low: `efficiency-auditor`, `playtester`.
-- `/iterate` runs one batch at a time on that batch's implementer tier. `triage` never mixes tiers in a batch. Luke can override the tier, for example "/iterate B3 on Opus", or run one item alone ("/iterate UX-104 solo"). Deep-tier items already get Opus at high effort during implementation, so they don't also need a separate high-effort physics pass from the main session.
+  - Opus at low: `implementer-deep`, `physics-reviewer`, `perf-profiler`, `implementer-opus`. Dropped from high/medium to low on 2026-09-28 (Luke was hitting Opus session limits); this trades some depth on the hardest reasoning for staying inside usage limits, so watch these four for missed findings or under-scoped implementations and raise a tier back to medium/high if they start costing more in rework than they save. The reviewers name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model. `implementer-deep` is used by `/iterate` for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments. `implementer-opus` is used by `/iterate` for physics or perf area items, or anything at effort 2 or more.
+  - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`, `triage`. `triage` was raised from low on 2026-09-28: at low, its first batch grouping broke its own rules (it mixed tiers in one batch and left effort-3 items out of `solo`) — don't drop it back down.
+  - Sonnet at low: `efficiency-auditor`, `playtester`, `implementer`. `implementer` dropped from medium to low on 2026-09-28 (Luke, to cut usage): it's used by `/iterate` for everything else (ux, design, efficiency or code items at effort 1); any under-scoped edits are still caught by `/code-review` and `playtester` downstream, so this is a lower-risk place to save than the reviewer tiers.
+- `/iterate` runs one batch at a time on that batch's implementer tier. `triage` never mixes tiers in a batch. Luke can override the tier, for example "/iterate B3 on Opus", or run one item alone ("/iterate UX-104 solo"). Deep-tier items still get their own `physics-reviewer` pass since implementation and review are separate agents even though both currently run at low effort.
 - Run `/audit` rarely, since it's the most expensive command. Work the existing backlog down with `/iterate` first.
 
 ## Conventions

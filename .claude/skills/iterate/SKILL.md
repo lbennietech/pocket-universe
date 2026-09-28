@@ -28,7 +28,7 @@ The unit of work is a **batch**: a group of Ready items that `triage` has put to
 
 ## 2. Implement
 
-Brief **one** implementer agent with every item in the batch: each item's full row (ID, area, impact, effort, evidence) and its proposal. It works through them one at a time as isolated edits. For each item, it makes the **smallest reasonable change** that delivers it, in `index.html` (plus tests if the behaviour is new), keeping the single-file, no-build design, using `rand()` never `Math.random()`, and adding or extending a check in `tests/harness.js` or `tests/invariants.js` for new behaviour. It runs the tests once at the end and reports per item what changed. It never commits or pushes.
+Brief **one** implementer agent with every item in the batch: each item's full row (ID, area, impact, effort, evidence) and its proposal. It works through them one at a time as isolated edits. For each item, it makes the **smallest reasonable change** that delivers it, in `index.html` (plus tests if the behaviour is new), using `rand()` never `Math.random()`, and adding or extending a check in `tests/harness.js` or `tests/invariants.js` for new behaviour. It runs the tests once at the end and reports per item what changed. It never commits or pushes.
 
 Never run two implementer agents on the same working tree at once: they'd overwrite each other's uncommitted edits. Only split a batch across agents with separate git worktrees, as in the A/B convention.
 

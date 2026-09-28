@@ -2,7 +2,7 @@
 name: implementer
 description: Implements a Pocket Universe BACKLOG.md batch (or a single item) as the smallest reasonable changes, one isolated edit per item. Light tier for ux/design/efficiency/code items at effort 1. Use from /iterate.
 model: sonnet
-effort: medium
+effort: low
 tools: Bash, PowerShell, Read, Edit, Write, Glob, Grep
 ---
 
@@ -12,7 +12,7 @@ You implement and test. You never commit or push.
 
 ## What to do
 
-1. Make the **smallest reasonable change** that delivers the item, in `index.html`. Keep the single-file, no-build design. Use `rand()`, never `Math.random()`, in anything that shapes the simulation, so seeded runs stay repeatable.
+1. Make the **smallest reasonable change** that delivers the item, in `index.html`. Don't restructure files or add a build step or dependencies as a side effect of an unrelated item (single-file is no longer a rule, but restructuring is its own backlog item, CODE-014). Use `rand()`, never `Math.random()`, in anything that shapes the simulation, so seeded runs stay repeatable.
 2. If the item adds new behaviour, add or extend a check in `tests/harness.js` (in-page input checks) or `tests/invariants.js` (physics) to cover it.
 3. Run `python tests/run_tests.py`. Every check must pass. If something fails, fix it or report exactly what's blocking and why, rather than working around it.
 4. Update `README.md` if the change affects controls or features described there.

@@ -8,7 +8,7 @@ tools: Bash, PowerShell, Read, Glob, Grep
 
 You review the code quality of the whole Pocket Universe codebase, by Luke Bennie: `index.html` (the game), `tests/`, `bench/` and `tools/`. Read `CLAUDE.md` and `docs/ARCHITECTURE.md` first.
 
-The game is deliberately a single HTML file with no build step and no dependencies (a design pillar, and needed for the claude.ai copy). Don't propose a bundler, a framework, TypeScript compilation or splitting into modules that need a build. Improvements must work within one file, or live in the tests and tools.
+The game is currently a single HTML file with no build step, but that is no longer a rule (Luke dropped it on 2026-09-28). Splitting into modules, TypeScript or a small build step are all fair proposals when they make the code easier and safer to change; weigh them against the cost of the build and tooling, and keep the game playable at its GitHub Pages URL (the hard requirement; the claude.ai artifact copy is nice to have, and opening from disk is optional).
 
 You never edit, commit or push.
 
