@@ -156,6 +156,75 @@
     check('every scene starts with net momentum near zero', sceneDrifts.every(([, d]) => d <= 1e-6),
       { drifts: sceneDrifts.map(([k, d]) => `${k}: ${d.toExponential(2)}`) });
 
+    // 8. A heavy supernova still leaves a nebula: ejecta speeds keep pace with
+    // the remnant's escape speed, so some of it escapes (PHYS-002)
+    const nebula = [];
+    for (const mSun of [20, 200]) {
+      P.loadScene('empty');
+      P.seed(3);
+      const star = P.makeBody(0, 0, 0, 0, mSun * P.MSUN, 'star');
+      P.addBody(star);
+      P.settle();
+      P.supernova(star);
+      P.settle();
+      P.physics(2000, P.DT);
+      const D = P.dustState, far = 40 * star.r;
+      let out = 0;
+      for (let i = 0; i < D.n; i++) if (Math.hypot(D.x[i] - star.x, D.y[i] - star.y) > far) out++;
+      nebula.push(out);
+    }
+    check('a supernova leaves a nebula at any mass', nebula.every(n => n >= 150),
+      { escapedAt20: nebula[0], escapedAt200: nebula[1], of: 520 });
+
+    // 9. A planet merger that crosses 13 M♃ repaints the survivor as a brown dwarf (PHYS-004)
+    P.loadScene('empty');
+    P.seed(4);
+    const half = P.DWARF * 0.6;
+    const pa = P.makeBody(0, 0, 0, 0, half, 'planet', 'rust');
+    P.addBody(pa);
+    P.addBody(P.makeBody(1, 0, 0, 0, half * 0.9, 'planet', 'ocean'));
+    P.settle();
+    P.physics(5, P.DT);
+    const merged = P.bodies.length === 1 ? P.bodies[0] : null;
+    check('a merger into a brown dwarf repaints it', merged && merged.style === 'dwarf' && P.kindName(merged) === 'Brown dwarf',
+      { bodies: P.bodies.length, style: merged && merged.style, name: merged && P.kindName(merged) });
+
+    // 10. Even the smallest star's habitable zone lies outside it, clear of a
+    // life-sized planet touching its surface (PHYS-005)
+    const hzClear = [];
+    for (const f of [1, 1.25, 1.75, 3, 6]) {
+      const s = P.makeBody(0, 0, 0, 0, P.IGNITE * f, 'star');
+      const inner = 0.95 * Math.sqrt(s.lum) * P.AU, contact = s.cr + P.radiusFor(P.LIFE_MIN, 'planet') * 1.4;
+      hzClear.push([+(s.m / P.MSUN).toFixed(2), +inner.toFixed(1), +contact.toFixed(1)]);
+    }
+    check('red dwarf habitable zones lie outside the star', hzClear.every(([, inner, contact]) => inner > contact),
+      { massInnerContact: hzClear });
+
+    // 11. A comet sheds a finite amount of dust, then goes dormant (PHYS-003)
+    P.loadScene('empty');
+    P.seed(6);
+    P.addBody(P.makeBody(0, 0, 0, 0, P.MSUN, 'star'));
+    const cr = 0.8 * P.AU, comet = P.makeComet(cr, 0, 0, P.circV(P.MSUN, cr), 0.5);
+    P.addBody(comet);
+    P.settle();
+    P.setRate(200);
+    const span = 1.5 * P.COMET_ICE * P.SHED_DT;   // 1.5× the time to shed the whole budget
+    while (P.simTime < span) P.tick(60);
+    check('a comet stops shedding when its ice runs out',
+      !comet.icy && !comet.dead && P.dust <= P.COMET_ICE,
+      { icy: comet.icy, dead: comet.dead, dust: P.dust, budget: P.COMET_ICE, name: P.kindName(comet) });
+
+    // 12. The Formation disk builds planets, not brown dwarfs (PHYS-001). The
+    // old disk had a brown dwarf by year 10; the tuned one stays under 13 M♃.
+    P.stopLoop();
+    P.seed(1);
+    P.loadScene('formation');
+    P.setRate(P.sceneRate('formation'));
+    while (P.simTime < 20 * P.YEAR) P.tick(60);
+    const biggest = P.bodies.reduce((m, b) => b.kind === 'planet' && b.m > m ? b.m : m, 0);
+    check('the Formation scene grows planets, not brown dwarfs, by year 20', biggest > 0 && biggest <= P.DWARF,
+      { biggestMJ: +(biggest / P.DWARF * 13).toFixed(2), limitMJ: 13 });
+
     return checks;
   };
 })();

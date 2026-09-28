@@ -465,6 +465,7 @@
   const RATE_DEFAULT = 4;                         // about 9 days a second
   const TRAIL_DT = 1.36;                          // simulated time between trail points
   const SHED_DT = 2;                              // simulated time between comet dust grains
+  const COMET_ICE = 1500;                         // dust grains a comet can shed before it's spent
   const HZ_LO = 1 / (1.55 * 1.55), HZ_HI = 1 / (0.95 * 0.95);   // habitable flux range, Earth = 1
   const LIFE_MIN = 10;                            // lighter worlds can't hold an atmosphere (in this toy)
   const LIFE_T = [4 * YEAR, 14 * YEAR, 28 * YEAR];
@@ -685,6 +686,12 @@
   // Bodies massive enough to pull on dust the way a star or black hole does:
   // any non-planet, or a planet-mass body at or above HEAVY_TRACER_M.
   function isHeavy(b) { return b.kind !== 'planet' || b.m >= HEAVY_TRACER_M; }
+  // Luminosity (L☉) and surface temperature (K) for a star of s solar masses.
+  // L ∝ M^3.5 fits the upper main sequence; like their radii, red dwarfs below
+  // 0.5 M☉ dim and cool more gently, which keeps even the smallest star's
+  // habitable zone outside the star itself.
+  const lumFor = s => s >= 0.5 ? Math.pow(s, 3.5) : 0.5 ** 3.5 * Math.pow(s / 0.5, 1.8);
+  const tempFor = s => 5778 * (s >= 0.5 ? Math.pow(s, 0.54) : 0.5 ** 0.54 * Math.pow(s / 0.5, 0.23));
   function refresh(b) {
     b.r = radiusFor(b.m, b.kind);
     if (b.kind === 'star') b.rgb = starRGB(b.m);
@@ -698,7 +705,7 @@
     b.ringStr = lighten(b.rgb, 0.6);
     b.sprite = glowSprite(b.rgb);
     b.cr = b.r * (b.kind === 'planet' ? 1.4 : b.kind === 'bh' ? 1.6 : 1);
-    b.lum = b.kind === 'star' ? Math.pow(b.m / MSUN, 3.5) : 0;
+    b.lum = b.kind === 'star' ? lumFor(b.m / MSUN) : 0;
     if (b.kind !== 'planet') b.icy = false;
   }
   // `look` is an RGB array (a fixed color, or a black hole's disk color) or
@@ -719,6 +726,7 @@
   function makeComet(x, y, vx, vy, m) {
     const b = makeBody(x, y, vx, vy, m, 'planet', ICE_RGB.slice());
     b.icy = true;
+    b.ice = COMET_ICE;
     return b;
   }
   function addTracer(x, y, vx, vy, c) {
@@ -935,6 +943,9 @@
       return;
     }
     if (a.kind !== 'planet') lifeLost(a, 'swallowed');
+    // repaint a planet whose look no longer fits: it grew into a brown dwarf,
+    // or a comet lost its ice to a rocky partner
+    else if ((a.m > DWARF) !== (a.style === 'dwarf') || (aIcy && !a.icy)) a.rgb = null;
     refresh(a);
 
     if (bigKind === 'planet') {
@@ -1022,10 +1033,13 @@
     refresh(a);
     a.feed = 400;
     const r0 = a.r * 3;
+    // escape speed at r0 grows as M^¼ (r0 grows as √M), so ejecta speeds scale
+    // with it: a heavy remnant still leaves a nebula instead of eating it all
+    const k = Math.pow(M / COLLAPSE, 0.25);
     for (let i = 0; i < 520; i++) {
       const ang = rand() * Math.PI * 2;
       const fast = rand() < 0.7;
-      const sp = fast ? 70 + rand() * 70 : 12 + rand() * 30;
+      const sp = k * (fast ? 70 + rand() * 70 : 12 + rand() * 30);
       addTracer(a.x + Math.cos(ang) * r0, a.y + Math.sin(ang) * r0,
         a.vx + Math.cos(ang) * sp, a.vy + Math.sin(ang) * sp,
         // a remnant glows in hydrogen red, oxygen teal and hot white, like the Crab Nebula
@@ -1192,6 +1206,8 @@
       if (!best || F < 0.4) continue;
       const dx = b.x - best.x, dy = b.y - best.y, d = Math.hypot(dx, dy) || 1;
       addTracer(b.x, b.y, b.vx + dx / d * 0.8 + gauss() * 0.3, b.vy + dy / d * 0.8 + gauss() * 0.3, rand() < 0.5 ? 4 : 8);
+      // a spent comet is just a dark, barren nucleus: no more tails or dust
+      if (--b.ice <= 0) { b.icy = false; b.rgb = null; b.style = 'ash'; refresh(b); }
     }
   }
 
@@ -1321,10 +1337,12 @@
       build() {
         const sun = makeBody(0, 0, 0, 0, MSUN, 'star');
         bodies.push(sun);
-        for (let i = 0; i < 280; i++) {
+        // a light disk (about 25 M♃ in all), so mergers build planets that stay
+        // under 13 M♃ instead of snowballing into brown dwarfs
+        for (let i = 0; i < 200; i++) {
           const r = AU * (0.6 + rand() * 4.2);
           const a = rand() * Math.PI * 2;
-          const m = 3 + rand() * 5;
+          const m = 0.6 + rand() * 1.6;
           const v = circV(MSUN, r) * (1 + gauss() * 0.05);
           const vr = gauss() * 0.05 * v;
           const ux = Math.cos(a), uy = Math.sin(a);
@@ -1956,7 +1974,7 @@
     if (!b.icy) rows.push(['Mass', massLabel(b.m, b.kind)]);
     cSupernova.hidden = true;
     if (b.kind === 'star') {
-      const s = b.m / MSUN, Tk = Math.round(5778 * Math.pow(s, 0.54) / 10) * 10;
+      const s = b.m / MSUN, Tk = Math.round(tempFor(s) / 10) * 10;
       rows.push(['Class', `${spectral(Tk)} · ${Tk.toLocaleString()} K`]);
       rows.push(['Light', `${fmtNum(b.lum)} L☉`]);
       const hi = 0.95 * Math.sqrt(b.lum), ho = 1.55 * Math.sqrt(b.lum);
@@ -2737,7 +2755,7 @@
       aimMass: () => aim ? aimMass() : 0,
       aimStyle: m => aim ? aimStyle(m) : null,
       // engine constants and maths, so tests and benchmarks never keep their own copies
-      radiusFor, circV, seededRand, MSUN, IGNITE, COLLAPSE, AU, YEAR, KMS, EPS2, DT, MAX_T, RATE_DEFAULT, TOOLS, perf,
+      radiusFor, circV, seededRand, MSUN, IGNITE, COLLAPSE, DWARF, LIFE_MIN, COMET_ICE, SHED_DT, AU, YEAR, KMS, EPS2, DT, MAX_T, RATE_DEFAULT, TOOLS, perf,
       sceneRate: key => SCENES[key].rate || RATE_DEFAULT,
       toScreen: o => [sx(o.x), sy(o.y)],
       // counters for the memory soak
@@ -2748,7 +2766,7 @@
       stopLoop() { loopOn = false; },
       tick(frames = 1, elapsedMs = 1000 / 60) { for (let i = 0; i < frames; i++) advance(elapsedMs); },
       physics(steps, dt = DT) { for (let i = 0; i < steps; i++) step(dt); },
-      setRate, loadScene, makeBody, addTracer,
+      setRate, loadScene, makeBody, makeComet, supernova, kindName, addTracer,
       addBody(b) { bodies.push(b); },
       settle() { lights = bodies.filter(o => o.kind === 'star'); accel(); pairs.length = 0; },
       get pairs() { return pairs.length; }

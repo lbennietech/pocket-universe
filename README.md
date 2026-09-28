@@ -41,7 +41,7 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 - **Cradle of life**: a calm solar system with two worlds in the habitable zone. Starts at a faster speed so life turns up within seconds; turn it up further and wait.
 - **Black hole feast**: stars on plunging orbits around a 10 M☉ black hole. The ones that get too close are shredded.
 - **Figure eight**: three equal stars chasing each other on the figure-eight orbit found by Cris Moore in 1993.
-- **Solar system forming**: a young Sun in a disk of planetesimals that collide and grow into planets. Starts at a faster speed so the first collisions show up quickly.
+- **Solar system forming**: a young Sun in a disk of planetesimals that collide and grow into planets, and the ones that settle in the habitable zone can grow life. Starts at a faster speed so the first collisions show up quickly.
 - **Binary star**: two suns with four circumbinary planets.
 - **Mayhem**: twelve heavy stars in a tight cluster.
 - **Empty space**: a blank canvas.
@@ -54,7 +54,7 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 - **Planet types**: ocean, jungle, desert, rocky, barren, lava and ice worlds, banded gas and ice giants, and magenta brown dwarfs. Zoom in to see surface patches and cloud bands.
 - **Tidal disruption**: a star or planet that crosses a black hole's tidal radius is torn into a stream of debris.
 - **Habitable zones and life**: planets that receive between 0.42 and 1.1 times Earth's sunlight long enough develop life, then a civilization, then start launching probes. Drifting out of the zone, giant impacts and nearby supernovae wipe life out. Comet impacts give it a head start.
-- **Comets**: green comas, ion tails that point away from the star, curved dust tails, and shed dust that spreads into a stream along the orbit.
+- **Comets**: green comas, ion tails that point away from the star, curved dust tails, and shed dust that spreads into a stream along the orbit. A comet's ice runs out eventually, leaving a dark, barren nucleus.
 - **Supernova remnants** glow in hydrogen red, oxygen teal and hot white, like the Crab Nebula.
 - **Warp view**: a grid bent by every heavy mass, with gravitational-wave ripples when black holes merge.
 
