@@ -2,7 +2,7 @@
 name: implementer-deep
 description: Implements a Pocket Universe BACKLOG.md batch (or a single item) as the smallest reasonable changes, one isolated edit per item. Deep tier for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers/threading, and A/B experiments. Use from /iterate.
 model: opus
-effort: low
+effort: high
 tools: Bash, PowerShell, Read, Edit, Write, Glob, Grep
 ---
 
