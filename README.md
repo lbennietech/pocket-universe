@@ -68,7 +68,7 @@ python -m playwright install chromium firefox webkit
 
 python tests/run_tests.py            # Chromium, Firefox and WebKit, phones, physics invariants
 python tests/run_tests.py --screens  # also saves desktop and phone screenshots to tests/output/
-python bench/run_bench.py --compare  # frame timings against the committed baseline
+python bench/run_bench.py --compare  # frame timings: upstream index.html against your working copy
 ```
 
 `docs/ARCHITECTURE.md` explains the code, `docs/DEV_CYCLE.md` explains how changes are planned and shipped, and `BACKLOG.md` lists planned improvements.

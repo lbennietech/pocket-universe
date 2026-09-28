@@ -18,7 +18,7 @@ Finds improvements across the whole game (not just a change), with evidence, and
 Run these and keep the output. The agents will cite it:
 
 - `python tests/run_tests.py --screens`: functional checks in three engines, phones, physics invariants, and screenshots in `tests/output/`.
-- `python bench/run_bench.py --compare`: frame timings, heap growth, size, budgets and the comparison with the baseline.
+- `python bench/run_bench.py --compare`: frame timings from a same-session A/B against the upstream `index.html`, heap growth (`long-run` and `soak`), size and budgets.
 
 ## 3. Dispatch the specialists in parallel
 

@@ -22,7 +22,7 @@ The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterat
 | `/audit` | Full review of the game by seven specialist agents, then triage into the backlog. The most expensive command, so run it rarely. |
 | "show the backlog" / "show the batches" | Claude lists the Ready items or batches with their Tier and Est. time |
 | `python tests/run_tests.py` | All checks: three browsers, emulated phones, physics invariants. `--quick` for a load check, `--screens` to save screenshots to `tests/output/`. |
-| `python bench/run_bench.py` | Benchmarks, about 3 minutes. Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`). `--compare` checks against `bench/baseline.json`, and `--baseline` records a new one (only after a genuine improvement, or when the measuring method changes). `--quick` is a fast single run, not comparable with the baseline. |
+| `python bench/run_bench.py` | Benchmarks, about 3 minutes (`--compare` about 6). Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`), plus a memory `soak`. `--compare` is a same-session A/B of the upstream `index.html` against the working copy (`--ref` picks another git ref or file); `--against baseline` compares with `bench/baseline.json` instead, and `--baseline` records a new one (only after a genuine improvement, or when the method or scenarios change). `--quick` is a fast single run, not comparable with the baseline. |
 | `python tools/serve.py` | Serves the game at http://localhost:8765/ for the Playwright browser tool. |
 | `python tools/build_artifact.py` | Rebuilds `pocket-universe.html` for the claude.ai artifact (it skips the rebuild if `index.html` hasn't changed). |
 | `/effort high` | For hard reasoning in the main session. Return to medium afterwards. |
@@ -113,7 +113,7 @@ Simulation changes interact through shared physics, so `sim` and `perf` stay sma
    - Two agents never share a working tree.
    - An item that turns out riskier than its category suggests is skipped and goes back to Ready.
 3. **Test.** `python tests/run_tests.py` must pass everywhere, and `python bench/run_bench.py --compare` must not regress by more than 5%.
-   - A stash/pop A/B test against the unchanged code tells a real regression apart from machine drift.
+   - `--compare` already times the upstream `index.html` and the working copy in the same session, so machine drift cancels out. If it warns that it fell back to the stored baseline, a failure may still be drift.
 4. **Review.** Run the batch's reviews once (see the table above), briefing each reviewer with the full item list.
 5. **Triage.** Blockers go back to the same implementer via SendMessage, then retest.
    - An item that can't be fixed quickly is dropped from the batch rather than holding up the rest.

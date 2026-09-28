@@ -12,7 +12,7 @@ A browser gravity sandbox. There is no build step, no package manager and no run
 | `tests/run_tests.py` | Playwright (Python) test runner: in-page checks in Chromium, Firefox and WebKit, real mouse input, emulated Pixel 7 and iPhone 13, physics invariants, screenshots. |
 | `tests/harness.js` | In-page input checks (synthetic mouse, touch and keyboard) and regression checks. |
 | `tests/invariants.js` | Physics invariants: determinism, energy and momentum conservation, NaN under stress, tunnelling, step-size stability. |
-| `bench/run_bench.py`, `bench/scenes.js` | Benchmarks on seeded scenes. Each metric is the median of 5 interleaved runs (3 for `long-run`). There's a committed baseline (`bench/baseline.json`), tagged with how it was measured, and a 5% regression gate. |
+| `bench/run_bench.py`, `bench/scenes.js` | Benchmarks on seeded scenes, desktop and a real phone screen. Each metric is the median of 5 interleaved runs (3 for `long-run`), plus a memory soak. The 5% regression gate (`--compare`) is a same-session A/B against the upstream `index.html`. The committed baseline (`bench/baseline.json`) keeps budgets and history, tagged with its method and scenario hash. |
 | `tools/build_artifact.py` | Rebuilds `pocket-universe.html` (gitignored), the copy published to claude.ai. |
 | `tools/serve.py` | Local server on port 8765 for the Playwright browser tool (`.mcp.json`). |
 | `.claude/agents/` | Review and audit agents (playtester, physics-reviewer, perf-profiler, ux-reviewer, game-designer, efficiency-auditor, code-quality-reviewer, triage). |
@@ -82,7 +82,7 @@ Everything that shapes the simulation draws from `rand()`, which is `Math.random
 python tests/run_tests.py            # everything, about 2 minutes
 python tests/run_tests.py --screens  # also saves desktop and phone screenshots to tests/output/
 python tests/run_tests.py --quick    # a few seconds: does the page load and run cleanly?
-python bench/run_bench.py --compare  # benchmarks against the baseline
+python bench/run_bench.py --compare  # benchmarks: upstream index.html against the working copy
 python tools/build_artifact.py       # rebuild the claude.ai copy
 ```
 

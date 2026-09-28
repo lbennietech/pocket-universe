@@ -6,7 +6,7 @@ A browser gravity sandbox by Luke Bennie. Everything in the game lives in `index
 
 - `index.html`: the game. Edit this one.
 - `tests/run_tests.py`: Playwright (Python) test runner. It plays the game in Chromium, Firefox and WebKit (Safari's engine) and on emulated phones, using scripted and real input, and runs the physics invariant tests. `--screens` also saves screenshots to `tests/output/` (gitignored), and `--quick` does a few-second load check. The checks themselves are `tests/harness.js` (in-page input checks) and `tests/invariants.js` (physics).
-- `bench/run_bench.py`: performance benchmarks on seeded scenes. Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`), to keep machine noise out of the comparison. `bench/baseline.json` is the committed baseline, and `bench/results/latest.json` holds the latest run (gitignored).
+- `bench/run_bench.py`: performance benchmarks on seeded scenes. Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`). `--compare` is a same-session A/B: it times the upstream `index.html` (normally `origin/main`) and the working copy side by side, so drift between sessions cancels out. A `soak` run and `long-run` check heap growth. `bench/baseline.json` is the committed baseline (budgets and history), and `bench/results/latest.json` holds the latest run (gitignored).
 - `tools/build_artifact.py`: rebuilds `pocket-universe.html`, the copy published as a private claude.ai artifact (https://claude.ai/artifact/QMJGjmuBKfrCHBa8WvXdK5). That file is ignored by git.
 - `tools/serve.py`: serves the game at http://localhost:8765/ for the Playwright browser tool (MCP) that agents use. It starts the server if it isn't running and waits until it's ready.
 - `.claude/agents/`: review and audit agents. `.claude/skills/`: `/audit` and `/iterate`. `.claude/hooks/` and `.claude/settings.json`: automatic checks. `.mcp.json`: the Playwright browser tool.
@@ -15,7 +15,7 @@ A browser gravity sandbox by Luke Bennie. Everything in the game lives in `index
 ## Before every push
 
 1. Run `python tests/run_tests.py`. Every check must pass.
-2. Run `python bench/run_bench.py --compare` when the change could affect speed. It must not regress by more than 5%.
+2. Run `python bench/run_bench.py --compare` when the change could affect speed (about 6 minutes). The working copy must not be more than 5% slower than the upstream `index.html` timed in the same session.
 3. Run `/code-review` on the changes and fix what it finds.
 4. Have the **playtester** agent check the change.
 5. If the change touches the simulation (gravity, collisions, sizes, masses, speed or time-stepping, dust, life rules or scenes), also have the **physics-reviewer** agent review it.
@@ -29,11 +29,11 @@ Every agent judges proposals and findings against these.
 
 ### Performance budgets
 
-Measured by `bench/run_bench.py` in headless Chromium. The "phone" profile slows the CPU down 4×.
+Measured by `bench/run_bench.py` in headless Chromium. The "phone" profile uses a real phone's screen (412×915 at 2.625× pixel density) and slows the CPU down 4×.
 
 - **Everyday scene** (`medium`: 300 bodies plus 8,000 dust): 60 fps on a mid-range laptop (≤ 16.6 ms a frame on average, p95 ≤ 20 ms). On the phone profile, 30 fps (≤ 33 ms).
 - **Stretch** (`large`: 1,000 bodies plus 4,000 dust): 60 fps on a laptop. It doesn't meet this yet; that's a backlog item, not a blocker.
-- **No steady memory growth:** the `long-run` bench may not grow the JS heap by more than 5 MB. Avoid new per-frame allocations in the physics and drawing hot paths.
+- **No steady memory growth:** neither the `long-run` bench nor the `soak` (scene reloads, throws, supernovae, black holes) may grow the JS heap by more than 5 MB. Avoid new per-frame allocations in the physics and drawing hot paths.
 - **Size:** `index.html` stays at or under 40 KB gzipped (34 KB when this was set). Lower the budget when it drops.
 
 ### Physics correctness
@@ -57,7 +57,7 @@ Checked by `tests/invariants.js`.
 
 - **Audit:** `/audit` runs the benchmarks and invariant tests, sends six specialist agents over the whole game, and has `triage` update `BACKLOG.md`.
 - **Iterate:** `/iterate` takes the next **batch** in `BACKLOG.md` (the one holding the top Ready item, or a batch or item you name) through the full pipeline once: implement, test, benchmark, review, playtest, commit, push and republish. `triage` groups Ready items into batches by category (`ui`, `tooling`, `sim`, `perf`, `solo`) and tier, so each batch gets the reviews it needs just once. See "Batches" in `docs/DEV_CYCLE.md`.
-- **Bench:** `python bench/run_bench.py` (run), `--compare` (against the baseline, fails on a regression over 5%) and `--baseline` (record a new baseline, only when the numbers genuinely improved or the measuring method changed). The baseline records how it was measured, and `--compare` refuses a baseline measured a different way.
+- **Bench:** `python bench/run_bench.py` (run), `--compare` (same-session A/B against the upstream `index.html`, fails on a regression over 5%; it falls back to the baseline, with a warning, if the upstream can't run the current scenes), `--compare --against baseline` (against the stored baseline) and `--baseline` (record a new baseline, only when the numbers genuinely improved or the measuring method or scenarios changed). The baseline records its method and a hash of the scenario definitions, and comparing with it refuses a mismatch in either.
 - **A/B experiments:** when a backlog item is a big architectural choice (for example a quadtree versus a uniform grid, Canvas2D versus WebGL, or physics on the main thread versus a Worker), create two git worktrees, one per approach. Implement both minimally, benchmark each, keep the winner, and record both results in the item's **Done** entry.
 - **Unattended audits:** not set up. Luke chose not to run a nightly audit for now.
 

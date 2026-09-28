@@ -37,7 +37,7 @@ If the implementer flags an item as riskier than its category suggests (for exam
 ## 3. Test
 
 - `python tests/run_tests.py`: every check must pass, including the physics invariants.
-- `python bench/run_bench.py --compare`: on a regression over the threshold, find which item caused it (a stash/pop A/B test against the unchanged code shows whether it's the change or the machine), then fix it or drop that item from the batch. If you drop or abandon an item, move it back to Ready (or to Rejected) and record why.
+- `python bench/run_bench.py --compare`: a same-session A/B against the upstream `index.html` (normally `origin/main`), so machine drift between sessions cancels out. On a regression over the threshold, find which item in the batch caused it, then fix it or drop that item from the batch. If you drop or abandon an item, move it back to Ready (or to Rejected) and record why.
 
 ## 4. Review
 
@@ -61,7 +61,7 @@ Pass the reviewers' findings to `triage`. Send blockers back to the same impleme
 
 ## 6. Ratchet the baseline
 
-If the benchmarks genuinely improved and nothing regressed, update the baseline with `python bench/run_bench.py --baseline`, and mention the improvement. Also re-baseline when `--compare` reports that the baseline uses an outdated measuring method, and commit that on its own. If it's *this run* that was measured differently (`--quick`, `--repeats`, or stale `--no-run` results), re-run the benchmark instead. Machine drift isn't an improvement. (The benchmark takes the median of 5 interleaved runs, which absorbs most of the noise within a single session. Drift between sessions, such as a machine slowing down as it heats up, can still show up.) If a re-baseline is only needed because the machine slowed down, ask Luke first and commit it separately with a clear message.
+`bench/baseline.json` is for budgets and history, not the push gate (`--compare` benchmarks the upstream `index.html` and the working copy side by side instead, so machine drift between sessions doesn't matter for it). Update the baseline with `python bench/run_bench.py --baseline` only when the numbers genuinely improved, or when `--compare --against baseline` reports the baseline's method or scenario definitions are outdated, and commit that on its own with a clear message. If it's *this run* that was measured differently (`--quick`, `--repeats`, or stale `--no-run` results), re-run the benchmark instead. Never re-baseline for machine drift.
 
 ## 7. Finish
 

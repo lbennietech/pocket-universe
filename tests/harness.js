@@ -27,7 +27,7 @@
     }));
   }
   const key = (k, type = 'keydown') => window.dispatchEvent(new KeyboardEvent(type, { key: k, bubbles: true }));
-  const scr = b => [(b.x - P().cam.x) * P().cam.z + innerWidth / 2, (b.y - P().cam.y) * P().cam.z + innerHeight / 2];
+  const scr = b => P().toScreen(b);
   function loadScene(s) {
     $('scene').value = s;
     $('scene').dispatchEvent(new Event('change'));
@@ -45,7 +45,7 @@
     await wait(300);
     loadScene('empty');
     await wait(100);
-    check('starts empty at default speed', P().bodies.length === 0 && P().rate === 4,
+    check('starts empty at default speed', P().bodies.length === 0 && P().rate === P().RATE_DEFAULT,
       { bodies: P().bodies.length, rate: P().rate, label: $('speedLabel').textContent });
 
     // Slow-payoff scenes start faster than the global default, so life shows up sooner
@@ -57,7 +57,7 @@
     loadScene('empty');
     await wait(100);
     check('cradle starts faster than the global default, and the slider still works after',
-      cradleRate > 4 && cradleManual > cradleRate && P().rate === 4,
+      cradleRate > P().RATE_DEFAULT && cradleManual > cradleRate && P().rate === P().RATE_DEFAULT,
       { cradleRate: r2(cradleRate), cradleManual: r2(cradleManual), resetRate: P().rate });
 
     // Restarting the same scene should keep the player's chosen speed, not
@@ -85,7 +85,7 @@
     P().loadScene('cradle');
     await wait(100);
     check('loading a scene that happens to match the current key, without an explicit restart flag, still applies its starting rate',
-      beforeReload !== 60 && P().rate === 60,
+      beforeReload !== P().sceneRate('cradle') && P().rate === P().sceneRate('cradle'),
       { beforeReload: r2(beforeReload), afterReload: r2(P().rate) });
     loadScene('empty');
     await wait(100);
@@ -126,8 +126,9 @@
     c.dispatchEvent(new WheelEvent('wheel', { deltaY: 300, clientX: 900, clientY: 500, bubbles: true, cancelable: true }));
     const mWheel = P().aimMass();
     pe('pointerup', 900, 500, { ctrl: true });
-    check('star grows to 100 M☉, scroll trims it', Math.abs(mMax / 12000 - 100) < 0.5 && mWheel < mMax,
-      { maxMsun: r2(mMax / 12000), afterWheelMsun: r2(mWheel / 12000) });
+    const starMax = P().TOOLS.star.max, MSUN = P().MSUN;
+    check('star grows to the maximum, scroll trims it', Math.abs(mMax / starMax - 1) < 0.005 && mWheel < mMax,
+      { maxMsun: r2(mMax / MSUN), toolMaxMsun: r2(starMax / MSUN), afterWheelMsun: r2(mWheel / MSUN) });
 
     // Escape cancels a throw
     key('1');
@@ -147,7 +148,7 @@
     $('speed').value = 1000; $('speed').dispatchEvent(new Event('input'));
     const maxLabel = $('speedLabel').textContent;
     $('speedLabel').click();
-    check('speed keys, slider range and reset', faster > 5 && reset === 4 && /hr\/s/.test(minLabel) && /yr\/s/.test(maxLabel),
+    check('speed keys, slider range and reset', faster > P().RATE_DEFAULT && reset === P().RATE_DEFAULT && /hr\/s/.test(minLabel) && /yr\/s/.test(maxLabel),
       { faster: r2(faster), reset, minLabel, maxLabel });
 
     // Touch: quick drag moves the view without placing
@@ -257,7 +258,7 @@
     check('small-planet preview keeps one style', styles.size === 1, { styles: [...styles] });
 
     // Brown dwarfs are always smaller than the smallest star
-    const rBd = P().radiusFor(940, 'planet'), rRd = P().radiusFor(P().IGNITE, 'star');
+    const rBd = P().radiusFor(P().TOOLS.planet.max, 'planet'), rRd = P().radiusFor(P().IGNITE, 'star');
     check('biggest brown dwarf is smaller than smallest star', rBd < rRd, { brownDwarf: r2(rBd), redDwarf: r2(rRd) });
 
     // A black hole shredding a star keeps the pair's momentum

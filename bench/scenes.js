@@ -19,16 +19,6 @@
     'long-run': { star: 1, planets: 300, dust: 6000, r0: 0.8, r1: 6 }
   };
 
-  function mulberry32(seed) {
-    let t = seed >>> 0;
-    return () => {
-      t = (t + 0x6D2B79F5) >>> 0;
-      let r = Math.imul(t ^ (t >>> 15), 1 | t);
-      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
   window.__puBenchSpecs = SPECS;
   window.__puBuild = function (name, seed = 1) {
     const P = window.__pu, spec = SPECS[name];
@@ -36,10 +26,10 @@
     P.stopLoop();
     P.loadScene('empty');
     P.seed(seed);
-    const R = mulberry32(seed * 7919 + 17);
-    const AU = P.AU, MSUN = P.MSUN;
-    // circular speed with the game's softening (EPS2 = 16)
-    const circV = (M, r) => { const d2 = r * r + 16; return Math.sqrt(M * r * r / (d2 * Math.sqrt(d2))); };
+    // the layout has its own stream (the game's generator, seeded differently),
+    // and the units and circular speed come from the game, never a local copy
+    const R = P.seededRand(seed * 7919 + 17);
+    const AU = P.AU, MSUN = P.MSUN, circV = P.circV;
 
     if (spec.pileup) {
       const Rw = spec.radius * AU;

@@ -2729,7 +2729,12 @@
       get selected() { return selected; }, get follow() { return follow; },
       aimMass: () => aim ? aimMass() : 0,
       aimStyle: m => aim ? aimStyle(m) : null,
-      radiusFor, MSUN, IGNITE, AU, YEAR, DT, MAX_T, perf,
+      // engine constants and maths, so tests and benchmarks never keep their own copies
+      radiusFor, circV, seededRand, MSUN, IGNITE, AU, YEAR, KMS, EPS2, DT, MAX_T, RATE_DEFAULT, TOOLS, perf,
+      sceneRate: key => SCENES[key].rate || RATE_DEFAULT,
+      toScreen: o => [sx(o.x), sy(o.y)],
+      // counters for the memory soak
+      get sprites() { return spriteCache.size; }, get effects() { return effects.length; },
       // repeatable runs: seed the generator, stop the real-time loop and drive
       // whole frames (or bare physics steps) from the test
       seed(n) { rand = seededRand(n); },

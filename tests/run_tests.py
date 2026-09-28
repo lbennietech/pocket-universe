@@ -49,8 +49,7 @@ DESKTOP_SHOTS = [
 INIT = "window.__PU_TEST__ = true;\n" + (ROOT / "bench" / "scenes.js").read_text(encoding="utf-8") \
     + "\n" + (TESTS / "invariants.js").read_text(encoding="utf-8")
 HARNESS = (TESTS / "harness.js").read_text(encoding="utf-8")
-SCREEN_POS = """(pred) => { const b = window.__pu.bodies.find(pred ? new Function('o', 'return ' + pred) : () => true),
-    c = window.__pu.cam; return [(b.x - c.x) * c.z + innerWidth / 2, (b.y - c.y) * c.z + innerHeight / 2]; }"""
+SCREEN_POS = """(pred) => window.__pu.toScreen(window.__pu.bodies.find(pred ? new Function('o', 'return ' + pred) : () => true))"""
 
 
 def launch(pw, engine):

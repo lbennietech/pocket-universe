@@ -5,16 +5,16 @@
  * Injected (with bench/scenes.js) by run_tests.py. window.__puInvariants()
  * runs every check synchronously through the test hook and returns a list of
  * { name, pass, detail }. Tolerances, chosen for the game's leapfrog
- * integrator (second order, symplectic, softening EPS2 = 16):
+ * integrator (second order, symplectic, with the game's softening EPS2).
+ * Every constant and formula comes from the test hook, never a local copy:
  *   energy drift        ≤ 0.1% over 10,000 steps at the largest step DT
  *   momentum            ≤ 1e-9 of Σ m|v| (only rounding error should remain)
  *   tunnelling          must collide at up to 450 km/s (a hard normal throw)
  *   step-size stability ≤ 0.1% drift at DT, DT/4 and DT/16 over the same time
  */
 (() => {
-  const EPS2 = 16;
-
   function energy(bodies) {
+    const EPS2 = window.__pu.EPS2;
     let K = 0, U = 0;
     for (let i = 0; i < bodies.length; i++) {
       const a = bodies[i];
@@ -54,8 +54,7 @@
     P.addBody(P.makeBody(0, 0, 0, 0, M, 'star'));
     const radii = [0.5, 0.8, 1.1, 1.5, 2.0, 2.6, 3.2, 4.0];
     radii.forEach((rAU, i) => {
-      const r = rAU * AU, a = i * 2.39996, d2 = r * r + EPS2;
-      const v = Math.sqrt(M * r * r / (d2 * Math.sqrt(d2)));
+      const r = rAU * AU, a = i * 2.39996, v = P.circV(M, r);
       P.addBody(P.makeBody(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, 5 + i, 'planet'));
     });
     // zero the total momentum so the system stays put
@@ -68,7 +67,7 @@
   window.__puInvariants = function () {
     const P = window.__pu, checks = [];
     const check = (name, pass, detail) => checks.push({ name, pass: !!pass, detail });
-    const kms = P.YEAR / P.AU * 4.74;   // one velocity unit in km/s
+    const kms = P.KMS;   // one velocity unit in km/s
 
     // 1. Determinism: same seed, same frames, identical state
     // 97 frames (not a multiple of the 6- and 30-frame cadences), with a
