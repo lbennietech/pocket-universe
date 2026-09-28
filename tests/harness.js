@@ -363,6 +363,24 @@
     check('finger left after a pinch pans and stops following', following && !P().follow && P().cam.x < camX - 20,
       { wasFollowing: following, following: P().follow, camDx: r2(P().cam.x - camX) });
 
+    // A throw that falls straight into the Sun hints at Auto-orbit, once;
+    // with Auto-orbit on there's no hint
+    const hints = () => [...document.querySelectorAll('#feed li span')].filter(s => /Auto-orbit/.test(s.textContent)).length;
+    loadScene('cradle');
+    await wait(100);
+    key(' ');
+    const [hx, hy] = scr(P().bodies.find(b => b.kind === 'star'));
+    key('o');
+    await place('1', hx + 40, hy, 0);
+    const hintAssisted = hints();
+    key('o');
+    await place('1', hx + 40, hy + 10, 0);
+    await place('1', hx - 40, hy, 0);
+    const hintPlain = hints();
+    key(' ');
+    check('a throw that falls into its star hints at Auto-orbit, once', hintAssisted === 0 && hintPlain === 1,
+      { withAutoOrbit: hintAssisted, withoutTwoThrows: hintPlain });
+
     // Every scene loads and runs
     for (const s of ['galaxies', 'cradle', 'feast', 'eight', 'formation', 'binary', 'mayhem']) {
       loadScene(s);

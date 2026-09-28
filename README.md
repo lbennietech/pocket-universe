@@ -57,6 +57,7 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 - **Comets**: green comas, ion tails that point away from the star, curved dust tails, and shed dust that spreads into a stream along the orbit. A comet's ice runs out eventually, leaving a dark, barren nucleus.
 - **Supernova remnants** glow in hydrogen red, oxygen teal and hot white, like the Crab Nebula.
 - **Warp view**: a grid bent by every heavy mass, with gravitational-wave ripples when black holes merge.
+- **Nothing vanishes silently**: bodies are only removed once they're escaping and about 400 AU out, well past the widest view, and never the system you started with. The event feed counts every planet that falls into a star or is flung away ("3 planets fell into stars"), and a throw that would fall straight into its star suggests Auto-orbit. Dust holds up to 20,000 grains; past that, the oldest dust makes way for new clouds.
 
 ## Development
 

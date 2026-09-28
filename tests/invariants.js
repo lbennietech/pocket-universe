@@ -14,6 +14,9 @@
  *   top of the slider   (block steps) deterministic; no tunnelling at 450 or
  *                       900 km/s; Binary keeps its planets within 5% of their
  *                       orbits and energy within 0.1% for 300 years
+ *   limits              far throws and the original system aren't culled,
+ *                       losses are reported in one counted notice, and a new
+ *                       dust cloud always appears, even with the pool full
  */
 (() => {
   function energy(bodies) {
@@ -347,6 +350,79 @@
     const keeping = label.textContent;
     check('the speed readout shows the achieved rate when it lags', /^≈/.test(lagging) && !/^≈/.test(keeping),
       { lagging, keeping });
+
+    // 17. A planet thrown out to a distant orbit, still on screen at the widest
+    // zoom (160 AU, drifting out at ~4 km/s), isn't culled
+    P.seed(1);
+    P.loadScene('cradle');
+    P.setRate(P.RATE_DEFAULT);
+    const far = P.makeBody(160 * P.AU, 0, 1, 0, 12, 'planet');
+    P.addBody(far);
+    P.settle();
+    P.tick(600);
+    check('a planet thrown far out, within the widest view, survives', P.bodies.includes(far),
+      { distAU: +(Math.hypot(far.x, far.y) / P.AU).toFixed(1), frames: 600 });
+
+    // 18. A heavy star placed far away, flying off, never culls the original
+    // system; at top speed the newcomer is the one that goes (after its grace)
+    // (a lone Sun: one body each, so before the fix the heavier newcomer won)
+    P.seed(1);
+    P.loadScene('empty');
+    const sun0 = P.makeBody(0, 0, 0, 0, P.MSUN, 'star');
+    P.addBody(sun0);
+    P.settle();
+    P.tick(30);   // the Sun is the main group
+    const heavyStar = P.makeBody(200 * P.AU, 0, 4, 0, 5 * P.MSUN, 'star');
+    P.addBody(heavyStar);
+    P.settle();
+    P.setRate(P.RATE_MAX);
+    let sunLost = -1;
+    for (let f = 0; f < 600 && sunLost < 0; f++) { P.tick(1); if (!P.bodies.includes(sun0)) sunLost = f; }
+    const feedText = () => [...document.querySelectorAll('#feed li span')].map(s => s.textContent);
+    check('a heavy star placed far away never culls the original system',
+      sunLost < 0 && !P.bodies.includes(heavyStar) && feedText().some(t => /star was flung into interstellar space/.test(t)),
+      { sunLostAtFrame: sunLost, newcomerKept: P.bodies.includes(heavyStar), feed: feedText() });
+
+    // 19. Losses are counted in one notice, not dropped: three small placed
+    // planets dropped on the Sun, then three rogue planets flung away
+    P.seed(1);
+    P.loadScene('cradle');
+    document.getElementById('feed').textContent = '';
+    const sun1 = P.bodies.find(b => b.kind === 'star');
+    for (let k = 0; k < 3; k++) {
+      const b = P.makeBody(sun1.x + 2 * k, sun1.y + 3, sun1.vx, sun1.vy, 1, 'planet');
+      b.placed = true;
+      P.addBody(b);
+    }
+    P.settle();
+    P.setRate(P.RATE_DEFAULT);
+    P.tick(1);
+    const fell = feedText().filter(t => /^3 planets fell into stars$/.test(t)).length;
+    for (let k = 0; k < 3; k++) P.addBody(P.makeBody((500 + k * 20) * P.AU, 0, 30, 0, 1, 'planet'));
+    P.settle();
+    P.tick(240);
+    const flung = feedText().filter(t => /^3 planets were flung into interstellar space$/.test(t)).length;
+    check('merges and losses are counted in one notice each', fell === 1 && flung === 1, { feed: feedText() });
+
+    // 20. A new dust cloud always appears, even with the dust pool full: the
+    // oldest grains make way, deterministically
+    const fullPool = () => {
+      P.seed(4);
+      P.loadScene('galaxies');
+      const R = P.seededRand(9);
+      while (P.dust < P.MAX_T) P.addTracer((R() - 0.5) * 4000, (R() - 0.5) * 4000, 0, 0, 1);
+      for (let i = 0; i < 3000; i++) P.addTracer(5000 + (R() - 0.5) * 100, (R() - 0.5) * 100, 0, 0, 2);
+      const D = P.dustState;
+      let inCloud = 0;
+      for (let i = 0; i < D.n; i++) if (Math.abs(D.x[i] - 5000) <= 50 && Math.abs(D.y[i]) <= 50) inCloud++;
+      const n = D.n;
+      P.tick(40);
+      return { n, inCloud, hash: stateHash(P) };
+    };
+    const d1 = fullPool(), d2 = fullPool();
+    check('a new dust cloud appears in full even when the dust pool is full',
+      d1.inCloud === 3000 && d1.n === P.MAX_T && d1.hash === d2.hash,
+      { cap: P.MAX_T, dust: d1.n, cloudGrains: d1.inCloud, deterministic: d1.hash === d2.hash });
 
     return checks;
   };

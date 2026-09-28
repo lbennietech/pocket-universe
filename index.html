@@ -458,9 +458,10 @@
   const HEAVY_TRACER_M = 400;                     // planets at or above this mass pull on dust like a star or hole does
   const EPS2 = 16;                                // gravitational softening²
   const DT = 0.085;
-  const MAX_T = 8000;
+  const MAX_T = 20000;                           // dust pool; when full, new grains replace the oldest
   const TRAIL = 90;
-  const FAR = 30000;
+  const FAR = 80000;                              // 400 AU: past the view at the widest zoom
+  const GRACE = 180;                              // frames (3 s) a new body is safe from cull()
   const RANK = { planet: 0, star: 1, bh: 2 };
   const RATE_MIN = YEAR / 31557600, RATE_MAX = 1000 * YEAR;   // simulated time units per real second
   const RATE_DEFAULT = 4;                         // about 9 days a second
@@ -723,7 +724,7 @@
       rgb: kind === 'planet' ? color : null, disk: kind === 'bh' ? color : null,
       style: typeof look === 'string' ? look : null,
       trail: new Float32Array(TRAIL * 2), th: 0, tl: 0, tc: -1e9, t0: 0, tn: 0, q: 0, act: 0,
-      dead: false, into: null, pr: null, pp: 0, pd: 0, spin: rand() * 6.283, feed: 0,
+      dead: false, into: null, placed: false, born: frameN, pr: null, pp: 0, pd: 0, spin: rand() * 6.283, feed: 0,
       icy: false, hz: 0, life: 0, flux: 0
     };
     refresh(b);
@@ -735,9 +736,14 @@
     b.ice = COMET_ICE;
     return b;
   }
+  // When the pool is full, new grains reuse its slots round-robin, so a new
+  // cloud, ejecta or debris always appears (at the cost of whatever grains
+  // held those slots, not necessarily the oldest).
+  let recyc = 0;
   function addTracer(x, y, vx, vy, c) {
-    if (T.n >= MAX_T) return;
-    const i = T.n++;
+    let i = T.n;
+    if (i < MAX_T) T.n++;
+    else { i = recyc; recyc = (recyc + 1) % MAX_T; }
     T.x[i] = T.px[i] = x; T.y[i] = T.py[i] = y;
     T.vx[i] = vx; T.vy[i] = vy; T.c[i] = c; T.q[i] = -1; T.b[i] = gNow;
   }
@@ -1159,7 +1165,7 @@
 
     const size = Math.max(a.r, b.r);
     addFx(a.x, a.y, Math.max(size, 2), fxRgb, 'ring', 45);
-    if (smallKind !== 'planet' || smallM > 30) addFx(a.x, a.y, size * 1.4, fxRgb, 'flash', 30);
+    if (smallKind !== 'planet' || smallM > 30 || b.placed) addFx(a.x, a.y, size * 1.4, fxRgb, 'flash', 30);
 
     // life on the survivor
     if (a.life && bigKind === 'planet') {
@@ -1189,17 +1195,19 @@
     else if ((a.m > DWARF) !== (a.style === 'dwarf') || (aIcy && !a.icy)) a.rgb = null;
     refresh(a);
 
+    // small scene bodies merge quietly, but anything the player placed is reported
+    const placed = a.placed || b.placed, told = smallM >= 6 || placed;
     if (bigKind === 'planet') {
       if (bIcy && !aIcy) {
-        if (smallM >= 0.2) pushEvent('A comet struck a planet', 'planet', 'cp', 3000);
-      } else if (smallM >= 6) pushEvent('Two planets collided and merged', 'planet', 'pp', 3000);
+        if (smallM >= 0.2 || placed) tally('cp', 'planet', 'A comet struck a planet', '# comets struck planets');
+      } else if (told) tally('pp', 'planet', 'Two planets collided and merged', '# planet collisions');
     } else if (bigKind === 'star' && smallKind === 'planet') {
-      if (bIcy) pushEvent('A sungrazing comet plunged into a star', 'star', 'sc', 3000);
-      else if (smallM >= 6) pushEvent('A star swallowed a planet', 'star', 'sp', 2500);
+      if (bIcy) tally('sc', 'star', 'A sungrazing comet plunged into a star', '# comets plunged into stars');
+      else if (told) tally('sp', 'star', 'A planet fell into a star', '# planets fell into stars');
     } else if (bigKind === 'star') {
       pushEvent(`Two stars merged into one ${massLabel(m, 'star')} star`, 'star');
     } else if (smallKind === 'planet') {
-      if (smallM >= 6 && !bIcy) pushEvent('A black hole swallowed a planet', 'bh', 'bp', 2500);
+      if (told && !bIcy) tally('bp', 'bh', 'A planet fell into a black hole', '# planets fell into black holes');
     } else {
       pushEvent(`Two black holes merged. Gravitational waves are rippling out.`, 'wave');
       addFx(a.x, a.y, a.r * 6, [180, 210, 255], 'ring', 140);
@@ -1263,8 +1271,8 @@
     if (b.life) lifeLost(b, 'torn apart by a black hole');
     if (isStar) {
       pushEvent(`Tidal disruption: a black hole tore a ${massLabel(b.m, 'star')} star into a stream`, 'bh');
-    } else if (!b.icy && b.m >= 6) {
-      pushEvent('A black hole tore a planet apart', 'bh', 'tp', 2500);
+    } else if (!b.icy && (b.m >= 6 || b.placed)) {
+      tally('tp', 'bh', 'A black hole tore a planet apart', 'Black holes tore # planets apart');
     }
     if (selected === b) selected = h;
   }
@@ -1325,17 +1333,23 @@
   }
 
   // The main group is the most crowded neighbourhood of bodies, so one heavy
-  // runaway can't drag the reference point away from the system you're watching.
-  const NEAR = FAR / 4;
+  // runaway can't drag the reference point away from the system you're
+  // watching. The group around last time's centre body (or what it merged
+  // into) counts double, so a newcomer, however heavy, can't take over and get
+  // that system culled.
+  const NEAR = 7500;
+  let home = null;
   function mainGroup() {
     const N2 = NEAR * NEAR;
-    let best = null, bs = -1;
+    let h = home, best = null, bs = -1;
+    while (h && h.into) h = h.into;
     for (const a of bodies) {
       let s = 0;
       for (const b of bodies) {
         const dx = b.x - a.x, dy = b.y - a.y;
         if (dx * dx + dy * dy < N2) s += 1 + b.m * 1e-9;
       }
+      if (h && !h.dead && (a.x - h.x) ** 2 + (a.y - h.y) ** 2 < N2) s *= 2;
       if (s > bs) { bs = s; best = a; }
     }
     if (!best) return { ...centerOfMass(), vx: 0, vy: 0 };
@@ -1345,37 +1359,36 @@
       if (dx * dx + dy * dy >= N2) continue;
       M += b.m; x += b.x * b.m; y += b.y * b.m; vx += b.vx * b.m; vy += b.vy * b.m;
     }
-    return { x: x / M, y: y / M, vx: vx / M, vy: vy / M, m: M };
+    return { x: x / M, y: y / M, vx: vx / M, vy: vy / M, m: M, best };
   }
 
-  // Bodies are removed only when they are far from the main group and moving
-  // away faster than its escape speed, so nothing that will fall back is lost.
+  // A body is removed only when it's farther than FAR from the main group
+  // (and a planet or comet also from every star and black hole, so a distant
+  // system keeps its worlds) and moving away faster than everything's pull can
+  // hold. Anything past 20 FAR goes regardless. New and selected bodies are
+  // kept, so a throw is never lost the moment it leaves.
   function cull() {
     const c = mainGroup();
+    home = c.best;
     const R2 = FAR * FAR;
-    let lost = null;
-    for (const b of bodies) {
+    // stars and holes first, so a planet whose star just went goes with it
+    for (const pass of [true, false]) for (const b of bodies) {
       const dx = b.x - c.x, dy = b.y - c.y, r2 = dx * dx + dy * dy;
-      if (r2 <= R2) continue;
-      const r = Math.sqrt(r2), dvx = b.vx - c.vx, dvy = b.vy - c.vy;
-      // escaping means moving away with more kinetic energy than the pull of
-      // every other body can hold, so moons of a distant system stay
-      let pot = 0;
-      for (const o of bodies) {
-        if (o === b) continue;
-        pot += o.m / (Math.hypot(o.x - b.x, o.y - b.y) + 1);
+      const big = b.kind !== 'planet';
+      if (big !== pass || r2 <= R2 || b === selected || frameN - b.born < GRACE) continue;
+      if (r2 <= 400 * R2) {
+        if (!big && bodies.some(s => s.kind !== 'planet' && !s.dead && (s.x - b.x) ** 2 + (s.y - b.y) ** 2 <= R2)) continue;
+        const r = Math.sqrt(r2), dvx = b.vx - c.vx, dvy = b.vy - c.vy;
+        let pot = b.m / r;   // its own mass counts too: two bodies pull each other back
+        for (const o of bodies) if (o !== b) pot += o.m / (Math.hypot(o.x - b.x, o.y - b.y) + 1);
+        if (dx * dvx + dy * dvy <= 0 || 0.5 * (dvx * dvx + dvy * dvy) <= pot) continue;
       }
-      pot += b.m / r;   // its own mass counts too: two bodies pull each other back
-      const escaping = dx * dvx + dy * dvy > 0 && 0.5 * (dvx * dvx + dvy * dvy) > pot;
-      if (escaping || r > FAR * 20) {
-        b.dead = true;
-        if (b.life) lifeLost(b, 'flung into interstellar space');
-        else if (!b.icy && (b.kind !== 'planet' || b.m >= 6)) lost = b;
-      }
-    }
-    if (lost) {
-      const what = lost.kind === 'planet' ? 'A planet' : `A ${massLabel(lost.m, lost.kind)} ${lost.kind === 'bh' ? 'black hole' : 'star'}`;
-      pushEvent(`${what} was flung into interstellar space`, lost.kind === 'bh' ? 'bh' : lost.kind, 'lost', 2500);
+      b.dead = true;
+      if (b.life) lifeLost(b, 'flung into interstellar space');
+      else if (b.kind === 'bh') tally('fb', 'bh', `A ${massLabel(b.m, 'bh')} black hole was flung into interstellar space`, '# black holes were flung into interstellar space');
+      else if (big) tally('fs', 'star', `A ${massLabel(b.m, 'star')} star was flung into interstellar space`, '# stars were flung into interstellar space');
+      else if (b.icy) tally('fc', 'planet', 'A comet was flung into interstellar space', '# comets were flung into interstellar space');
+      else tally('fp', 'planet', 'A planet was flung into interstellar space', '# planets were flung into interstellar space');
     }
     if (bodies.some(b => b.dead)) { bodies = bodies.filter(b => !b.dead); fresh = false; }
     if (selected && selected.dead) deselect();
@@ -1424,7 +1437,7 @@
           }
         }
       }
-      for (let k = b.life >= 3 ? Math.min(maxProbes, dt / (0.25 * YEAR)) : 0; k > 0; k--) {
+      for (let k = b.life >= 3 && T.n < MAX_T ? Math.min(maxProbes, dt / (0.25 * YEAR)) : 0; k > 0; k--) {
         if (rand() >= Math.min(1, k)) continue;
         const a = rand() * Math.PI * 2, sp = 3 + rand() * 4;
         addTracer(b.x + Math.cos(a) * b.r * 1.6, b.y + Math.sin(a) * b.r * 1.6,
@@ -1656,7 +1669,8 @@
     sceneKey = key;
     bodies = [];
     effects = [];
-    T.n = 0;
+    T.n = recyc = 0;
+    home = null;
     simTime = 0;
     frameN = 0;   // life and cull run on frame multiples; reset so seeded runs repeat exactly
     lifeClock = 0;
@@ -1677,6 +1691,7 @@
     if (!isRestart) setRate(SCENES[key].rate || RATE_DEFAULT);
     feed.textContent = '';
     for (const k in lastEv) delete lastEv[k];
+    for (const k in tallies) delete tallies[k];
     pushEvent(SCENES[key].blurb, 'info', 'blurb', 1500);
     updateHud();
   }
@@ -1840,7 +1855,7 @@
       const R = cloudR(m);
       const p = a.primary;
       const s = assist ? assistSign(a.wx - p.x, a.wy - p.y) : 1;
-      if (T.n + m > MAX_T) pushEvent(`Dust limit reached: only ${Math.max(0, MAX_T - T.n).toLocaleString()} of ${m.toLocaleString()} particles fit`, 'info', 'dustcap', 5000);
+      if (T.n + m > MAX_T) pushEvent('The dust is at its limit, so the oldest dust made way for the new cloud', 'info', 'dustcap', 20000);
       for (let i = 0; i < m; i++) {
         const rr = Math.abs(gauss()) * R * 0.5, ang = rand() * Math.PI * 2;
         const x = a.wx + Math.cos(ang) * rr, y = a.wy + Math.sin(ang) * rr;
@@ -1854,6 +1869,15 @@
     } else {
       const b = tool === 'comet' ? makeComet(a.wx, a.wy, v.x, v.y, m)
         : makeBody(a.wx, a.wy, v.x, v.y, m, tool, tool === 'planet' ? aimStyle(m) : undefined);
+      b.placed = true;
+      const p = a.primary;
+      if (!assist && p && !p.dead && p.m > m) {
+        // a throw that dives straight into its primary: point to Auto-orbit, rarely
+        const o = orbitOf(b, p);
+        if (o.bound && o.a * (1 - o.e) < p.cr + b.cr) {
+          pushEvent(`That throw falls into the ${kindName(p).toLowerCase()}. Turn on Auto-orbit${coarse ? '' : ' (O)'} to throw into orbit.`, 'info', 'fallhint', 120000);
+        }
+      }
       let M0 = 0, px = 0, py = 0;
       if (assist) for (const o of bodies) { M0 += o.m; px += o.m * o.vx; py += o.m * o.vy; }
       bodies.push(b);
@@ -2130,6 +2154,21 @@
     setTimeout(() => li.classList.add('out'), tone === 'info' ? 10000 : 6500);
     setTimeout(() => li.remove(), tone === 'info' ? 10900 : 7400);
   }
+  // Frequent events are counted, not dropped: the first shows at the end of
+  // its frame, and any more within a second are shown together.
+  const tallies = {};
+  function tally(key, tone, one, many) {
+    const t = tallies[key] || (tallies[key] = { n: 0, tone, one, many, at: -1e9 });
+    t.n++; t.one = one;   // a lone event reads as the latest one
+  }
+  function flushTallies() {
+    for (const k in tallies) {
+      const t = tallies[k];
+      if (!t.n || frameN - t.at < 60) continue;
+      pushEvent(t.n > 1 ? t.many.replace('#', t.n) : t.one, t.tone);
+      t.n = 0; t.at = frameN;
+    }
+  }
 
   const setPressed = (id, v) => $(id).setAttribute('aria-pressed', String(v));
   function setTool(t) {
@@ -2215,7 +2254,7 @@
       rows.push(['Class', `${spectral(Tk)} · ${Tk.toLocaleString()} K`]);
       rows.push(['Light', `${fmtNum(b.lum)} L☉`]);
       const hi = 0.95 * Math.sqrt(b.lum), ho = 1.55 * Math.sqrt(b.lum);
-      // past the edge of the universe (150 AU) nothing can orbit there
+      // past the edge of the universe (400 AU) nothing can orbit there
       rows.push(['Habitable', hi * AU > FAR ? 'Too far out' : `${fmtNum(hi)}–${fmtNum(ho)} AU`]);
       note = s >= COLLAPSE / MSUN
         ? 'A very massive star. If it collides with another star, it collapses into a black hole in a supernova. Or trigger one now.'
@@ -2832,7 +2871,7 @@
       const t = f.life / f.max;
       const X = sx(f.x), Y = sy(f.y);
       if (f.kind === 'ring') {
-        const r = Math.max(3, f.size * cam.z) * (1 + 3.5 * (1 - t));
+        const r = Math.max(5, f.size * cam.z) * (1 + 3.5 * (1 - t));
         ctx.lineWidth = 1.5;
         ctx.strokeStyle = `rgba(${f.rgb},${(0.8 * t).toFixed(3)})`;
         ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.283); ctx.stroke();
@@ -2978,6 +3017,7 @@
     render();
     if (perf.on) { perf.physics = tRender - tPhys; perf.render = performance.now() - tRender; }
     if (frameN % 8 === 0) { updateHud(); updateCard(); showRate(); }
+    flushTallies();
   }
 
   let resizeRaf = 0;

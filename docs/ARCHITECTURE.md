@@ -26,7 +26,7 @@ A browser gravity sandbox. There is no build step, no package manager and no run
 The script is a single IIFE in strict mode. Its sections, in order, are marked by banner comments:
 
 1. **Units and constants**: G = 1, 200 units = 1 AU, 12,000 mass units = 1 M☉, `YEAR` ≈ 162 time units. Speed range, colour palettes, planet styles.
-2. **State**: `bodies` (array of objects), `T` (dust in typed arrays, structure of arrays, capacity `MAX_T` = 8,000), camera, flags, simulated-time clocks.
+2. **State**: `bodies` (array of objects), `T` (dust in typed arrays, structure of arrays, capacity `MAX_T` = 20,000; when full, new grains replace the oldest), camera, flags, simulated-time clocks.
 3. **Helpers**: colour maths, labels, glow sprite cache.
 4. **Bodies**: `radiusFor`, `refresh`, `makeBody`, dust add and remove, flux and orbit maths.
 5. **Physics**: `accel` (all pairs, O(n²)), `stepTracers` (dust × heavy bodies), `step` (leapfrog kick-drift-kick), merges, tidal shredding, supernovae, `mainGroup` and `cull`, trails.
@@ -66,7 +66,7 @@ Input events change state directly (camera, aim, selection). The simulation read
 ## Hot paths
 
 - `accel()`: all pairs of bodies, O(n²). Formation has about 280 bodies, so about 39,000 pairs per substep.
-- `stepTracers()`: every dust particle × every heavy body (stars, black holes and planets of 400 units or more). Up to 8,000 particles.
+- `stepTracers()`: every dust particle × every heavy body (stars, black holes and planets of 400 units or more). Up to 20,000 particles.
 - `drawTracers()`: one pass over the dust, building one `Path2D` per colour.
 - `drawPlanet` / `drawSurface`: gradients and clipping per visible planet above 4 px.
 - The work budget in `frame()` limits substeps to about 1.1 million pair-equivalents per frame. It counts operations, not measured time.
