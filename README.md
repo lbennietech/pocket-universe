@@ -50,7 +50,7 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 
 - **N-body gravity** with a leapfrog integrator. Heavy bodies all attract each other; dust particles feel only the heavy bodies, so thousands of them stay cheap.
 - **Real-ish units**: 1 AU, solar masses (M☉), Jupiter masses (M♃), years and km/s. A 1 AU orbit around a 1 M☉ star takes one year.
-- **Stellar physics, simplified**: star color and spectral class come from mass, from deep-red dwarfs to blue hypergiants. Planets that merge past 0.08 M☉ ignite into stars. Star mergers that pass 20 M☉ collapse into a black hole in a supernova. Bodies between 13 M♃ and 0.08 M☉ are brown dwarfs.
+- **Stellar physics, simplified**: star color and spectral class come from mass, from deep-red dwarfs to blue hypergiants. Planets that merge past 0.08 M☉ ignite into stars. Star mergers that pass 20 M☉ collapse into a black hole in a supernova, or inspect a star that heavy to trigger one yourself with the "Go supernova" button. Bodies between 13 M♃ and 0.08 M☉ are brown dwarfs.
 - **Planet types**: ocean, jungle, desert, rocky, barren, lava and ice worlds, banded gas and ice giants, and magenta brown dwarfs. Zoom in to see surface patches and cloud bands.
 - **Tidal disruption**: a star or planet that crosses a black hole's tidal radius is torn into a stream of debris.
 - **Habitable zones and life**: planets that receive between 0.42 and 1.1 times Earth's sunlight long enough develop life, then a civilization, then start launching probes. Drifting out of the zone, giant impacts and nearby supernovae wipe life out. Comet impacts give it a head start.

@@ -144,6 +144,18 @@
     check('stable across the speed slider', rateDrifts.every(d => d <= 1e-3) && finite(P.bodies),
       { drifts: rateDrifts.map(d => d.toExponential(2)) });
 
+    // 7. Every scene starts with (near) zero net momentum, so its center of
+    // mass stays put instead of drifting off-screen over time (CODE-010).
+    const sceneDrifts = [];
+    for (const key of ['galaxies', 'cradle', 'feast', 'eight', 'formation', 'binary', 'mayhem']) {
+      P.seed(11);
+      P.loadScene(key);
+      const p = momentum(P.bodies);
+      sceneDrifts.push([key, p.scale ? Math.hypot(p.px, p.py) / p.scale : 0]);
+    }
+    check('every scene starts with net momentum near zero', sceneDrifts.every(([, d]) => d <= 1e-6),
+      { drifts: sceneDrifts.map(([k, d]) => `${k}: ${d.toExponential(2)}`) });
+
     return checks;
   };
 })();

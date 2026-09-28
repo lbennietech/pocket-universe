@@ -118,6 +118,29 @@
     pe('pointerdown', 1200, 150); pe('pointerup', 1200, 150);
     check('click inspects, empty click closes', shown && $('card').hidden, { title });
 
+    // A heavy star shows a supernova button that immediately collapses it
+    loadScene('empty');
+    await wait(100);
+    const hugeStar = P().makeBody(0, 0, 0, 0, P().COLLAPSE * 1.5, 'star');
+    P().addBody(hugeStar);
+    P().settle();
+    const [hsx, hsy] = scr(hugeStar);
+    pe('pointerdown', hsx, hsy); pe('pointerup', hsx, hsy);
+    const supernovaShown = !$('cSupernova').hidden;
+    $('cSupernova').click();
+    check('heavy star shows a supernova button that collapses it', supernovaShown && hugeStar.kind === 'bh',
+      { supernovaShown, kindAfter: hugeStar.kind });
+
+    // A lighter star does not get the button
+    loadScene('empty');
+    await wait(100);
+    const smallStar = P().makeBody(0, 0, 0, 0, P().MSUN, 'star');
+    P().addBody(smallStar);
+    P().settle();
+    const [ssx, ssy] = scr(smallStar);
+    pe('pointerdown', ssx, ssy); pe('pointerup', ssx, ssy);
+    check('a light star has no supernova button', $('cSupernova').hidden, { hidden: $('cSupernova').hidden });
+
     // Long hold reaches the maximum; the wheel fine-tunes it down
     key('3');
     pe('pointerdown', 900, 500, { ctrl: true });

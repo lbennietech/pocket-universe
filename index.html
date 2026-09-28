@@ -383,6 +383,7 @@
         </header>
         <dl id="cStats"></dl>
         <p id="cNote"></p>
+        <button class="chip mini" id="cSupernova" hidden>Go supernova</button>
       </section>
     </div>
   </div>
@@ -453,6 +454,7 @@
   const IGNITE = 0.08 * MSUN;                     // hydrogen-burning limit
   const DWARF = 13 * MJUP;                        // deuterium-burning limit: above this, a brown dwarf
   const COLLAPSE = 20 * MSUN;                     // core collapse to a black hole
+  const HEAVY_TRACER_M = 400;                     // planets at or above this mass pull on dust like a star or hole does
   const EPS2 = 16;                                // gravitational softening²
   const DT = 0.085;
   const MAX_T = 8000;
@@ -505,7 +507,8 @@
   ];
   // Dust clouds are drawn from one of these color families, like real nebulae.
   const DUST_FAMILIES = [[6, 8, 3], [9, 7, 12], [11, 4, 3], [1, 13, 8], [10, 4, 0], [2, 12, 9], [7, 6, 13]];
-  const NONPROBE = [0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13];
+  const PROBE_COLOR = 5;                          // TRACER_RGB index used only for spacefaring probes
+  const NONPROBE = TRACER_RGB.map((_, i) => i).filter(i => i !== PROBE_COLOR);
   const STAR_STOPS = [
     [0.08, [255, 72, 52]], [0.3, [255, 112, 62]], [0.7, [255, 166, 82]], [1.0, [255, 214, 122]],
     [1.6, [255, 244, 214]], [3.0, [234, 240, 255]], [8.0, [166, 196, 255]], [25, [120, 150, 255]],
@@ -540,6 +543,8 @@
   let follow = false;
   let followK = 0;
   const cam = { x: 0, y: 0, z: 1, target: null };
+  const ZOOM_MIN = 0.02, ZOOM_MAX = 12;
+  const clampZoom = z => clamp(z, ZOOM_MIN, ZOOM_MAX);
 
   const T = {
     n: 0,
@@ -677,6 +682,9 @@
     b.bands = !!s.bands;
     b.tilt = (rand() - 0.5) * 0.7;
   }
+  // Bodies massive enough to pull on dust the way a star or black hole does:
+  // any non-planet, or a planet-mass body at or above HEAVY_TRACER_M.
+  function isHeavy(b) { return b.kind !== 'planet' || b.m >= HEAVY_TRACER_M; }
   function refresh(b) {
     b.r = radiusFor(b.m, b.kind);
     if (b.kind === 'star') b.rgb = starRGB(b.m);
@@ -801,7 +809,7 @@
   let HB = [];
   function stepTracers(dt) {
     if (!T.n) return;
-    HB = bodies.filter(b => b.kind !== 'planet' || b.m >= 400);
+    HB = bodies.filter(isHeavy);
     const hn = HB.length;
     if (hn > HX.length) {
       HX = new Float64Array(hn * 2); HY = new Float64Array(hn * 2);
@@ -1113,7 +1121,7 @@
     if (bodies.some(b => b.dead)) bodies = bodies.filter(b => !b.dead);
     if (selected && selected.dead) deselect();
     // dust goes only when it's far from the main group and from every heavy body
-    const heavy = bodies.filter(b => b.kind !== 'planet' || b.m >= 400);
+    const heavy = bodies.filter(isHeavy);
     for (let i = 0; i < T.n; i++) {
       const dx = T.x[i] - c.x, dy = T.y[i] - c.y;
       if (dx * dx + dy * dy <= R2) continue;
@@ -1171,7 +1179,7 @@
         if (rand() >= Math.min(1, k)) continue;
         const a = rand() * Math.PI * 2, sp = 3 + rand() * 4;
         addTracer(b.x + Math.cos(a) * b.r * 1.6, b.y + Math.sin(a) * b.r * 1.6,
-          b.vx + Math.cos(a) * sp, b.vy + Math.sin(a) * sp, 5);
+          b.vx + Math.cos(a) * sp, b.vy + Math.sin(a) * sp, PROBE_COLOR);
       }
     }
   }
@@ -1243,10 +1251,11 @@
   const SCENES = {
     galaxies: {
       fit: 720,
+      rate: 8,   // the encounter takes ~30s to peak at RATE_DEFAULT; start faster so the tidal tails pay off sooner
       blurb: 'Two galaxies on a collision course. The gold one spins with the encounter, so it gets torn into long tidal tails.',
       build() {
-        galaxy(-450, -120, 3.75, 0, 30000, 1600, 22, 310, 1, [12, 0, 3, 11], [255, 190, 110]);
-        galaxy(450, 120, -3.75, 0, 30000, 1300, 22, 260, -1, [13, 1, 8, 6], [150, 170, 255]);
+        galaxy(-450, -120, 3.75, 0, 30000, 2200, 22, 310, 1, [12, 0, 3, 11], [255, 190, 110]);
+        galaxy(450, 120, -3.75, 0, 30000, 1900, 22, 260, -1, [13, 1, 8, 6], [150, 170, 255]);
       }
     },
     cradle: {
@@ -1269,9 +1278,7 @@
         }
         const c = ellipticAt(0, 0, 0, 0, MSUN, 3.4 * AU, 0.86, rand() * Math.PI * 2, 1);
         bodies.push(makeComet(c.x, c.y, c.vx, c.vy, 0.5));
-        let px = 0, py = 0;
-        for (const b of bodies) { px += b.vx * b.m; py += b.vy * b.m; }
-        bodies[0].vx = -px / MSUN; bodies[0].vy = -py / MSUN;
+        zeroMomentum();
       }
     },
     feast: {
@@ -1314,7 +1321,6 @@
       build() {
         const sun = makeBody(0, 0, 0, 0, MSUN, 'star');
         bodies.push(sun);
-        let px = 0, py = 0;
         for (let i = 0; i < 280; i++) {
           const r = AU * (0.6 + rand() * 4.2);
           const a = rand() * Math.PI * 2;
@@ -1323,16 +1329,15 @@
           const vr = gauss() * 0.05 * v;
           const ux = Math.cos(a), uy = Math.sin(a);
           const b = makeBody(ux * r, uy * r, -uy * v + ux * vr, ux * v + uy * vr, m, 'planet');
-          px += b.vx * m; py += b.vy * m;
           bodies.push(b);
         }
-        sun.vx = -px / sun.m; sun.vy = -py / sun.m;
         for (let i = 0; i < 900; i++) {
           const r = AU * (0.4 + rand() * 5.2);
           const a = rand() * Math.PI * 2;
           const v = circV(MSUN, r) * (1 + gauss() * 0.03);
           addTracer(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, pick([2, 4, 12, 9, 10]));
         }
+        zeroMomentum();
       }
     },
     binary: {
@@ -1354,6 +1359,7 @@
           const v = Math.sqrt(Mt / r) * (1 + gauss() * 0.01);
           addTracer(Math.cos(a) * r, Math.sin(a) * r, -Math.sin(a) * v, Math.cos(a) * v, pick([2, 3, 13, 7]));
         }
+        zeroMomentum();   // the four planets' unbalanced momentum otherwise walks the pair off-screen
       }
     },
     mayhem: {
@@ -1372,21 +1378,14 @@
         let M = 0;
         for (const p of placed) M += p.m;
         const vs = Math.sqrt(M / 700) * 0.45;
-        let px = 0, py = 0;
         for (const p of placed) {
-          const b = makeBody(p.x, p.y, gauss() * vs, gauss() * vs, p.m, 'star');
-          px += b.vx * b.m; py += b.vy * b.m;
-          bodies.push(b);
+          bodies.push(makeBody(p.x, p.y, gauss() * vs, gauss() * vs, p.m, 'star'));
         }
         for (let i = 0; i < 30; i++) {
           const r = 850 * Math.sqrt(rand()), a = rand() * Math.PI * 2;
-          const b = makeBody(Math.cos(a) * r, Math.sin(a) * r, gauss() * vs, gauss() * vs, 4 + rand() * 30, 'planet');
-          px += b.vx * b.m; py += b.vy * b.m;
-          bodies.push(b);
+          bodies.push(makeBody(Math.cos(a) * r, Math.sin(a) * r, gauss() * vs, gauss() * vs, 4 + rand() * 30, 'planet'));
         }
-        let Mall = 0;
-        for (const b of bodies) Mall += b.m;
-        for (const b of bodies) { b.vx -= px / Mall; b.vy -= py / Mall; }
+        zeroMomentum();
         for (let i = 0; i < 900; i++) {
           const r = 900 * Math.sqrt(rand()), a = rand() * Math.PI * 2;
           addTracer(Math.cos(a) * r, Math.sin(a) * r, gauss() * vs * 0.8, gauss() * vs * 0.8, pick(NONPROBE));
@@ -1421,7 +1420,7 @@
     lights = bodies.filter(b => b.kind === 'star');
     cam.x = 0; cam.y = 0; cam.target = null;
     // a hidden or collapsed page has no size yet; fall back to a sane zoom
-    cam.z = VW && VH ? clamp(Math.min(VW, VH) * 0.46 / SCENES[key].fit, 0.02, 12) : 0.5;
+    cam.z = VW && VH ? clampZoom(Math.min(VW, VH) * 0.46 / SCENES[key].fit) : 0.5;
     if (SCENES[key].zones && !showZones) toggleZones();
     if (!isRestart) setRate(SCENES[key].rate || RATE_DEFAULT);
     feed.textContent = '';
@@ -1488,7 +1487,7 @@
 
   function zoomAt(px, py, z) {
     const X = wx(px), Y = wy(py);
-    cam.z = clamp(z, 0.02, 12);
+    cam.z = clampZoom(z);
     cam.x = X - (px - VW / 2) / cam.z;
     cam.y = Y - (py - VH / 2) / cam.z;
     cam.target = null;
@@ -1737,7 +1736,7 @@
       const p = [...pointers.values()];
       const mx = (p[0].x + p[1].x) / 2, my = (p[0].y + p[1].y) / 2;
       const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
-      cam.z = clamp(gesture.z0 * d / gesture.d0, 0.02, 12);
+      cam.z = clampZoom(gesture.z0 * d / gesture.d0);
       cam.x = gesture.wx - (mx - VW / 2) / cam.z;
       cam.y = gesture.wy - (my - VH / 2) / cam.z;
       return;
@@ -1819,7 +1818,7 @@
   const $ = id => document.getElementById(id);
   const feed = $('feed');
   const hint = $('hint');
-  const card = $('card'), cTitle = $('cTitle'), cGlyph = $('cGlyph'), cStats = $('cStats'), cNote = $('cNote'), cFollow = $('cFollow');
+  const card = $('card'), cTitle = $('cTitle'), cGlyph = $('cGlyph'), cStats = $('cStats'), cNote = $('cNote'), cFollow = $('cFollow'), cSupernova = $('cSupernova');
   const rTime = $('rTime'), rBodies = $('rBodies'), rDust = $('rDust'), rHeavy = $('rHeavy'), rLife = $('rLife');
   const scaleLabel = $('scaleLabel'), scaleBar = $('scaleBar');
   const toolBtns = [...document.querySelectorAll('[data-tool]')];
@@ -1955,6 +1954,7 @@
       : '';
 
     if (!b.icy) rows.push(['Mass', massLabel(b.m, b.kind)]);
+    cSupernova.hidden = true;
     if (b.kind === 'star') {
       const s = b.m / MSUN, Tk = Math.round(5778 * Math.pow(s, 0.54) / 10) * 10;
       rows.push(['Class', `${spectral(Tk)} · ${Tk.toLocaleString()} K`]);
@@ -1963,10 +1963,11 @@
       // past the edge of the universe (150 AU) nothing can orbit there
       rows.push(['Habitable', hi * AU > FAR ? 'Too far out' : `${fmtNum(hi)}–${fmtNum(ho)} AU`]);
       note = s >= COLLAPSE / MSUN
-        ? 'A very massive star. If it collides with another star, it collapses into a black hole in a supernova.'
+        ? 'A very massive star. If it collides with another star, it collapses into a black hole in a supernova. Or trigger one now.'
         : s >= 8
         ? `A heavy star. Merge it past 20 M☉ and it collapses into a black hole in a supernova.`
         : `Planets between ${fmtNum(hi)} and ${fmtNum(ho)} AU get the right amount of light for liquid water.`;
+      cSupernova.hidden = !(s >= COLLAPSE / MSUN);
     } else if (b.kind === 'bh') {
       const rs = 2.953 * b.m / MSUN;
       rows.push(['Horizon', `${rs.toFixed(1)} km radius`]);
@@ -2020,6 +2021,12 @@
   $('scene').addEventListener('change', e => { loadScene(e.target.value); e.target.blur(); });
   cFollow.addEventListener('click', () => setFollow(!follow));
   $('cClose').addEventListener('click', deselect);
+  cSupernova.addEventListener('click', () => {
+    if (selected && selected.kind === 'star' && selected.m >= COLLAPSE) {
+      supernova(selected);
+      updateCard();
+    }
+  });
 
   addEventListener('keydown', e => {
     if (e.key === 'Control' || e.key === 'Meta') { setMod(true); return; }
@@ -2218,7 +2225,7 @@
     }
     for (let c = 0; c < paths.length; c++) {
       if (!paths[c]) continue;
-      ctx.strokeStyle = `rgba(${TRACER_RGB[c]},${c === 5 ? 1 : 0.8})`;
+      ctx.strokeStyle = `rgba(${TRACER_RGB[c]},${c === PROBE_COLOR ? 1 : 0.8})`;
       ctx.stroke(paths[c]);
     }
     ctx.lineCap = 'butt';
@@ -2638,7 +2645,7 @@
   function frame(now) {
     if (!loopOn) return;
     requestAnimationFrame(frame);
-    const elapsed = Math.min(50, now - lastTime);
+    const elapsed = Math.max(0, Math.min(50, now - lastTime));
     lastTime = now;
     advance(elapsed);
   }
@@ -2662,7 +2669,7 @@
       let sub = Math.max(1, Math.ceil(want / DT));
       const dt = want / sub;
       const n = bodies.length;
-      const heavy = bodies.reduce((c, b) => c + (b.kind !== 'planet' || b.m >= 400 ? 1 : 0), 0);
+      const heavy = bodies.reduce((c, b) => c + (isHeavy(b) ? 1 : 0), 0);
       const work = n * (n - 1) / 2 + T.n * heavy + 1;
       sub = Math.min(sub, Math.max(1, Math.floor(1.1e6 / work)));
       for (let s = 0; s < sub; s++) {
@@ -2730,7 +2737,7 @@
       aimMass: () => aim ? aimMass() : 0,
       aimStyle: m => aim ? aimStyle(m) : null,
       // engine constants and maths, so tests and benchmarks never keep their own copies
-      radiusFor, circV, seededRand, MSUN, IGNITE, AU, YEAR, KMS, EPS2, DT, MAX_T, RATE_DEFAULT, TOOLS, perf,
+      radiusFor, circV, seededRand, MSUN, IGNITE, COLLAPSE, AU, YEAR, KMS, EPS2, DT, MAX_T, RATE_DEFAULT, TOOLS, perf,
       sceneRate: key => SCENES[key].rate || RATE_DEFAULT,
       toScreen: o => [sx(o.x), sy(o.y)],
       // counters for the memory soak
