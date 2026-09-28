@@ -66,7 +66,7 @@ RESULTS = BENCH / "results"
 BASELINE = BENCH / "baseline.json"
 LATEST = RESULTS / "latest.json"
 
-SIZE_BUDGET_KB = 40.0
+SIZE_BUDGET_KB = 45.0
 HEAP_GROWTH_BUDGET_MB = 5.0
 
 # browser context per profile; the canvas is sized by viewport x devicePixelRatio (capped at 2)

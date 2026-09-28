@@ -34,7 +34,7 @@ Measured by `bench/run_bench.py` in headless Chromium. The "phone" profile uses 
 - **Everyday scene** (`medium`: 300 bodies plus 8,000 dust): 60 fps on a mid-range laptop (≤ 16.6 ms a frame on average, p95 ≤ 20 ms). On the phone profile, 30 fps (≤ 33 ms).
 - **Stretch** (`large`: 1,000 bodies plus 4,000 dust): 60 fps on a laptop. It doesn't meet this yet; that's a backlog item, not a blocker.
 - **No steady memory growth:** neither the `long-run` bench nor the `soak` (scene reloads, throws, supernovae, black holes) may grow the JS heap by more than 5 MB. Avoid new per-frame allocations in the physics and drawing hot paths.
-- **Size:** `index.html` stays at or under 40 KB gzipped (34 KB when this was set). Lower the budget when it drops.
+- **Size:** `index.html` stays at or under 45 KB gzipped (34 KB when first set at 40 KB; raised to 45 KB on 2026-09-29 as an interim, because PERF-010 left ~0.03 KB of headroom and Luke's new requests, the vanishing-objects fix and the progression system, can't fit in that). CODE-014 will redefine the budget for a multi-file game (for example the total of all game files). Lower the budget when it drops.
 
 ### Physics correctness
 
@@ -48,7 +48,8 @@ Checked by `tests/invariants.js`.
 
 ### Design pillars
 
-1. **Toys over goals.** A sandbox to play with, not levels to beat. New features add toys and scenes, not scores or objectives.
+1. **Toys over goals.** A sandbox to play with, not levels to beat. New features add toys and scenes, not levels or gates.
+   - **Progression that rewards play (Luke, 2026-09-29).** Luke wants a progression system as the game's core hook: tied to the physics, fed by the player's actions and performance in the gameplay loop, and genuinely compelling to come back to, with a save system so it persists. It rewards and deepens free sandbox play (unlocking toys, knowledge and effects), never gates the sandbox behind levels. `progression-designer` leads its design.
    - **The sandbox is the game; the pre-built scenes are a demo of it (Luke, 2026-09-28).** Empty space and free play, where a player builds their own organic scenario from the toys, is the heart of Pocket Universe. The named scenes (Cradle, Formation, Binary, Mayhem, ...) exist to show new players what the sandbox can do, not as the main content. When a change would improve one at the expense of the other, favour the free sandbox: e.g. a toy, a control or a piece of physics that makes player-built scenarios more capable or fun outweighs polish on a scripted scene, and any per-scene special-casing (like PERF-012's scene-dependent speed ceiling) is a bug to fix, not a feature to lean on.
 2. **One click to chaos.** Something dramatic (collisions, supernovae, black holes) is always one action away.
 3. **Readable at a glance.** Sizes, colours, trails, labels and the inspector make the physics understandable without reading a manual.
@@ -70,6 +71,7 @@ Checked by `tests/invariants.js`.
 - Each agent's frontmatter sets its own model and effort. Don't change them without a reason. If an agent misses things or wastes usage, adjust one level at a time.
 - Opus is kept for the agents whose work needs deep reasoning, and the rest run on Sonnet to save usage (set 2026-09-27, implementer tiers added 2026-09-27):
   - Opus at high: `implementer-deep`. Used by `/iterate` for the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
+  - Opus at high: `progression-designer` (added 2026-09-29; designs progression, rewards and saves, the game's core hook, so Luke allowed high effort for it).
   - Opus at medium: `physics-reviewer`, `perf-profiler`, `implementer-opus`. The reviewers name `model: opus` explicitly rather than `inherit`, so they stay on Opus even when the session runs on a cheaper model. `implementer-opus` is used by `/iterate` for physics or perf area items, or anything at effort 2 or more.
   - Sonnet at medium: `code-quality-reviewer`, `ux-reviewer`, `game-designer`, `implementer`, `triage`. `implementer` is used by `/iterate` for everything else (ux, design, efficiency or code items at effort 1). `triage` was raised from low on 2026-09-28: at low, its first batch grouping broke its own rules (it mixed tiers in one batch and left effort-3 items out of `solo`).
   - Sonnet at low: `efficiency-auditor`, `playtester`.

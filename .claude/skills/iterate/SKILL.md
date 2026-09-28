@@ -10,6 +10,15 @@ Wraps the pre-push routine in `CLAUDE.md` and extends it with the backlog, batch
 
 The unit of work is a **batch**: a group of Ready items that `triage` has put together because they share a category, a tier and review needs (see the Batches table in `BACKLOG.md` and rule 9 in `.claude/agents/triage.md`). One batch goes through implement, test, review and ship once, however many items it holds. A `solo` batch is a single item and runs exactly like a classic one-item iteration.
 
+## 0. Intake Luke's new requests first
+
+Luke often adds requests mid-run. Before picking a batch (and again whenever new requests arrive during a run), do a quick intake pass:
+
+- **Write each new request as a goal**, with his own ideas recorded as context, not as the required solution. Specialist agents choose the approach.
+- **Consolidate with what's already queued.** Check every new request against the Ready and In progress rows. If it overlaps an existing item, merge it into that item (widen its goal, add the evidence) instead of adding a near-duplicate. If it supersedes an item, move the old one to Rejected with "superseded by <ID>".
+- **Then have `triage` regroup the batches and refresh priorities** across the whole Ready list, so the new work lands in the right batch and order. Items Luke explicitly pins (for example "very important", "highest priority") keep their pinned position.
+- Tell Luke in one or two lines what was merged, added or re-ordered.
+
 ## 1. Pick the batch and its tier
 
 - **What to run:**
