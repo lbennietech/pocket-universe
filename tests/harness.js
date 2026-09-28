@@ -167,12 +167,15 @@
     $('speedLabel').click();
     const reset = P().rate;
     $('speed').value = 0; $('speed').dispatchEvent(new Event('input'));
-    const minLabel = $('speedLabel').textContent;
+    const minLabel = $('speedLabel').textContent, minRate = P().rate;
     $('speed').value = 1000; $('speed').dispatchEvent(new Event('input'));
-    const maxLabel = $('speedLabel').textContent;
+    const maxLabel = $('speedLabel').textContent, maxRate = P().rate;
     $('speedLabel').click();
-    check('speed keys, slider range and reset', faster > P().RATE_DEFAULT && reset === P().RATE_DEFAULT && /hr\/s/.test(minLabel) && /yr\/s/.test(maxLabel),
-      { faster: r2(faster), reset, minLabel, maxLabel });
+    // the slider runs from real time (RATE_MIN) to a thousand years a second (RATE_MAX)
+    const ends = Math.abs(minRate / P().RATE_MIN - 1) < 1e-9 && Math.abs(maxRate / P().RATE_MAX - 1) < 1e-9;
+    check('speed keys, slider range and reset', faster > P().RATE_DEFAULT && reset === P().RATE_DEFAULT && ends &&
+      minLabel === 'Real time' && /^1000 yr\/s$/.test(maxLabel),
+      { faster: r2(faster), reset, minLabel, maxLabel, minRate, maxRate });
 
     // Touch: quick drag moves the view without placing
     const cy0 = P().cam.y;

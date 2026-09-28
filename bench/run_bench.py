@@ -317,7 +317,10 @@ def print_scene(name, r, tag=""):
 
 def run(selected, quick, repeats, with_soak, ref=None):
     """Benchmark the working copy; with ref=(label, html), also the reference, interleaved (A/B)."""
-    html = (ROOT / "index.html").read_bytes()
+    # Normalize CRLF -> LF: on Windows with core.autocrlf=true, the working-copy
+    # file has CRLF line endings, but git stores (and GitHub Pages serves) LF, so
+    # measuring the raw working-copy bytes overstates the gzip size that ships.
+    html = (ROOT / "index.html").read_bytes().replace(b"\r\n", b"\n")
     init = "window.__PU_TEST__ = true;\n" + (BENCH / "scenes.js").read_text(encoding="utf-8")
     out = {"scenes": {}}
     reps = {name: 1 if quick else repeats_for(name, repeats) for name in selected}

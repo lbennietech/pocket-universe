@@ -24,7 +24,7 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 | Center or follow, restart, stop inspecting | `F`, `R`, `Esc` | Dock buttons |
 | Show the controls and the scene's description again | `H` or the **?** button | **?** button |
 
-**Speed.** The slider runs from about 3 hours to more than a year of simulated time per real second. It starts at 9 days a second, faster for slow-payoff scenes like Cradle of life and Solar system forming so something happens within seconds of loading them, and the readout shows the current rate.
+**Speed.** The slider runs from real time (one simulated second a second) to 1,000 years of simulated time per real second, enough to watch a dust cloud become a solar system in one sitting. It starts at 9 days a second, faster for slow-payoff scenes like Cradle of life and Solar system forming so something happens within seconds of loading them, and the readout shows the current rate. At high speeds each body takes its own step size: wide, slow orbits take long steps, and tight orbits and close passes take short ones, so collisions still happen and orbits stay put. When a busy scene can't keep up, the readout shows the speed it actually reaches, such as "≈ 85 yr/s".
 
 **Sizes.** Holding still grows the object smoothly from its default toward its maximum in about four seconds. The ring around it shows how far along the range you are.
 

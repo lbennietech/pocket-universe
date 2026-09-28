@@ -461,9 +461,9 @@
   const TRAIL = 90;
   const FAR = 30000;
   const RANK = { planet: 0, star: 1, bh: 2 };
-  const RATE_MIN = 0.05, RATE_MAX = 200;          // simulated time units per real second
+  const RATE_MIN = YEAR / 31557600, RATE_MAX = 1000 * YEAR;   // simulated time units per real second
   const RATE_DEFAULT = 4;                         // about 9 days a second
-  const TRAIL_DT = 1.36;                          // simulated time between trail points
+  const TRAIL_DT = 1.36;                          // least simulated time between trail points
   const SHED_DT = 2;                              // simulated time between comet dust grains
   const COMET_ICE = 1500;                         // dust grains a comet can shed before it's spent
   const HZ_LO = 1 / (1.55 * 1.55), HZ_HI = 1 / (0.95 * 0.95);   // habitable flux range, Earth = 1
@@ -525,10 +525,13 @@
   let effects = [];
   let lights = [];
   let simTime = 0;
+  let fresh = false;   // accelerations and step criteria are current
+  let gNow = 0;        // grid time a new grain is born at
+  let lostX = 0, lostY = 0;   // momentum carried off by debris
+  let ach = RATE_DEFAULT;   // achieved rate, smoothed
   let lifeClock = 0;
   let paused = false;
   let rate = RATE_DEFAULT;
-  let trailClock = 0;
   let shedClock = 0;
   let showTrails = true;
   let showWarp = false;
@@ -552,7 +555,8 @@
     x: new Float32Array(MAX_T), y: new Float32Array(MAX_T),
     vx: new Float32Array(MAX_T), vy: new Float32Array(MAX_T),
     px: new Float32Array(MAX_T), py: new Float32Array(MAX_T),
-    c: new Uint8Array(MAX_T)
+    c: new Uint8Array(MAX_T),
+    q: new Float32Array(MAX_T), b: new Float64Array(MAX_T)   // block steps: 1/step², grid time of birth
   };
 
   // ---------------------------------------------------------------------------
@@ -693,6 +697,7 @@
   const lumFor = s => s >= 0.5 ? Math.pow(s, 3.5) : 0.5 ** 3.5 * Math.pow(s / 0.5, 1.8);
   const tempFor = s => 5778 * (s >= 0.5 ? Math.pow(s, 0.54) : 0.5 ** 0.54 * Math.pow(s / 0.5, 0.23));
   function refresh(b) {
+    fresh = false;
     b.r = radiusFor(b.m, b.kind);
     if (b.kind === 'star') b.rgb = starRGB(b.m);
     else if (b.kind === 'bh') b.rgb = b.disk || (b.disk = pick(BH_DISK).slice());
@@ -716,8 +721,8 @@
       id: nextId++, x, y, vx, vy, ax: 0, ay: 0, m, kind,
       rgb: kind === 'planet' ? color : null, disk: kind === 'bh' ? color : null,
       style: typeof look === 'string' ? look : null,
-      trail: new Float32Array(TRAIL * 2), th: 0, tl: 0,
-      dead: false, spin: rand() * 6.283, feed: 0,
+      trail: new Float32Array(TRAIL * 2), th: 0, tl: 0, tc: -1e9, t0: 0, tn: 0, q: 0, act: 0,
+      dead: false, into: null, pr: null, pp: 0, pd: 0, spin: rand() * 6.283, feed: 0,
       icy: false, hz: 0, life: 0, flux: 0
     };
     refresh(b);
@@ -733,13 +738,13 @@
     if (T.n >= MAX_T) return;
     const i = T.n++;
     T.x[i] = T.px[i] = x; T.y[i] = T.py[i] = y;
-    T.vx[i] = vx; T.vy[i] = vy; T.c[i] = c;
+    T.vx[i] = vx; T.vy[i] = vy; T.c[i] = c; T.q[i] = -1; T.b[i] = gNow;
   }
   function removeTracer(i) {
     const j = --T.n;
     if (i === j) return;
     T.x[i] = T.x[j]; T.y[i] = T.y[j]; T.vx[i] = T.vx[j]; T.vy[i] = T.vy[j];
-    T.px[i] = T.px[j]; T.py[i] = T.py[j]; T.c[i] = T.c[j];
+    T.px[i] = T.px[j]; T.py[i] = T.py[j]; T.c[i] = T.c[j]; T.q[i] = T.q[j]; T.b[i] = T.b[j];
   }
   function addFx(x, y, size, rgb, kind, life) {
     effects.push({ x, y, size, rgb: Array.isArray(rgb) ? rgb.join(',') : rgb, kind, life, max: life, rad: 0 });
@@ -815,6 +820,7 @@
 
   let HX = new Float64Array(256), HY = new Float64Array(256), HM = new Float64Array(256), HR = new Float64Array(256);
   let HB = [];
+  const capR = b => (b.kind === 'bh' ? 2.2 : 1) * b.r;   // dust inside this is swallowed
   function stepTracers(dt) {
     if (!T.n) return;
     HB = bodies.filter(isHeavy);
@@ -826,8 +832,7 @@
     for (let k = 0; k < hn; k++) {
       const b = HB[k];
       HX[k] = b.x; HY[k] = b.y; HM[k] = b.m;
-      const ar = b.kind === 'bh' ? b.r * 2.2 : b.r;
-      HR[k] = ar * ar;
+      HR[k] = capR(b) ** 2;
     }
     const X = T.x, Y = T.y, VX = T.vx, VY = T.vy;
     for (let i = 0; i < T.n; i++) {
@@ -864,6 +869,240 @@
     tidal();
     stepTracers(dt);
     simTime += dt;
+    fresh = false;
+  }
+
+
+  // Block steps (high speeds): each body steps a power-of-two share of the
+  // frame, from its shortest free-fall or fly-by time. forceOn(): pull on the
+  // active bodies, q = 1/step², contacts; a body steps at most 8× longer than a
+  // main attractor that swings about (a binary), so it can't resonate with it.
+  const EF = 1 / (0.03 * 0.03), EV = 1 / (0.1 * 0.1), ED = 1 / (0.3 * 0.3);   // 1/η² for free fall, fly-by, dust
+  function forceOn(A, na) {
+    const n = bodies.length;
+    pairs.length = 0;
+    for (let k = 0; k < na; k++) { const a = A[k]; a.ax = a.ay = a.q = a.pp = 0; a.act = k + 1; a.pr = null; }
+    for (let k = 0; k < na; k++) {
+      const a = A[k], x = a.x, y = a.y, vx = a.vx, vy = a.vy, m = a.m, cr = a.cr, ka = k + 1;
+      let ax = a.ax, ay = a.ay, q = a.q, pp = a.pp;
+      for (let j = 0; j < n; j++) {
+        const b = bodies[j], bk = b.act;
+        if (bk && bk <= ka) continue;
+        const dx = b.x - x, dy = b.y - y;
+        const r2 = dx * dx + dy * dy, d2 = r2 + EPS2;
+        const s = Math.sqrt(d2), i2 = 1 / d2, inv = i2 / s;
+        const ux = b.vx - vx, uy = b.vy - vy;
+        let w = (m + b.m) * inv * EF;
+        const f = (ux * ux + uy * uy) * i2 * EV;
+        if (f > w) w = f;
+        if (w > q) q = w;
+        ax += b.m * inv * dx; ay += b.m * inv * dy;
+        if (b.m * i2 > pp) { pp = b.m * i2; a.pr = b; a.pd = s; }
+        if (bk) {
+          b.ax -= m * inv * dx; b.ay -= m * inv * dy;
+          if (w > b.q) b.q = w;
+          if (m * i2 > b.pp) { b.pp = m * i2; b.pr = a; b.pd = s; }
+        }
+        const rr = cr + b.cr;
+        if (r2 < rr * rr) pairs.push(a, b);
+      }
+      a.ax = ax; a.ay = ay; a.q = q; a.pp = pp;
+    }
+    for (let k = 0; k < na; k++) {
+      const a = A[k], p = a.pr;
+      a.act = 0;
+      if (p && p.q > a.q * 64 && Math.hypot(p.ax, p.ay) * EF > 0.01 * a.pd * p.q) a.q = p.q / 64;
+    }
+  }
+
+  let NT = 0, tk = 0, trailS = 0;
+  let anyBH = true;
+  function events() {
+    const n0 = bodies.length;
+    if (pairs.length) resolveMerges();
+    if (anyBH) tidal();
+    return bodies.length !== n0;
+  }
+  function openAll(A, na, t) {
+    for (let k = 0; k < na; k++) {
+      const b = A[k], need = 1 / (Math.sqrt(b.q) * tk);
+      let st = 1;
+      while (st * 2 <= need && t % (st * 2) === 0 && t + st * 2 <= NT) st *= 2;
+      b.t0 = t; b.tn = t + st;
+      b.vx += b.ax * st * tk / 2; b.vy += b.ay * st * tk / 2;
+    }
+  }
+  function closeAll(t) {
+    const h = tk / 2;
+    for (const b of bodies) if (b.tn > t) { b.vx -= b.ax * (b.tn - t) * h; b.vy -= b.ay * (b.tn - t) * h; }
+    forceOn(bodies, bodies.length);
+    for (const b of bodies) {
+      if (b.t0 < t) { b.vx += b.ax * (t - b.t0) * h; b.vy += b.ay * (t - b.t0) * h; }
+      b.t0 = b.tn = t;
+    }
+  }
+  function trailTo(b, now) {
+    if (now - b.tc < Math.max(TRAIL_DT, Math.min(trailS, 2.3 / Math.sqrt(b.q)))) return;
+    b.tc = now;
+    const i = b.th * 2;
+    b.trail[i] = b.x; b.trail[i + 1] = b.y;
+    b.th = (b.th + 1) % TRAIL;
+    if (b.tl < TRAIL) b.tl++;
+  }
+
+  const ACT = [];
+  let HG = new Float64Array(0);
+  function grid(g) {
+    for (let k = 0, o = g * HB.length * 4; k < HB.length; k++, o += 4) {
+      const b = HB[k];
+      HG[o] = b.x; HG[o + 1] = b.y; HG[o + 2] = b.dead ? 0 : b.m; HG[o + 3] = capR(b) ** 2;
+    }
+  }
+  const P0 = new Float64Array(5), P1 = new Float64Array(5);
+  function momentum(P) {
+    let x = 0, y = 0, m = 0, cx = 0, cy = 0;
+    for (const b of bodies) { x += b.m * b.vx; y += b.m * b.vy; m += b.m; cx += b.m * b.x; cy += b.m * b.y; }
+    P[0] = x; P[1] = y; P[2] = m; P[3] = cx; P[4] = cy;
+    return P;
+  }
+  function block(D, B) {
+    anyBH = true;
+    if (!fresh) { forceOn(bodies, bodies.length); events(); }
+    const p0 = momentum(P0);
+    lostX = lostY = 0;
+    HB.length = 0;
+    for (const b of bodies) if (isHeavy(b)) HB.push(b);
+    const hn = HB.length, n = bodies.length;
+    let rate = 0, qb = 0, dr = 0;
+    anyBH = false;
+    for (const b of bodies) {
+      const s = Math.sqrt(b.q);
+      rate += s;
+      if (s > qb) qb = s;
+      if (b.kind === 'bh') anyBH = true;
+    }
+    rate = rate * (n + 10) + qb * (50 + 3 * n);
+    for (let i = 0; i < T.n; i++) if (T.q[i] > 0) dr += Math.sqrt(T.q[i]);
+    rate += dr * (hn + 8) / 2;
+    const left = Math.max(B / 4, B - n * n);   // less the full evaluations
+    if (rate * D > left) D = left / rate;
+    NT = 2 ** clamp(Math.ceil(Math.log2(D / DT * 8)), 0, 22);
+    tk = D / NT; trailS = D / 3;
+    const GS = NT / Math.min(NT, 1024);
+    if (HG.length < (NT / GS + 1) * hn * 4) HG = new Float64Array((NT / GS + 1) * hn * 8);
+    grid(0);
+    openAll(bodies, n, 0);
+    let t = 0, work = 0, ev = false, tn = GS, probes = 1;
+    for (const b of bodies) if (b.tn < tn) tn = b.tn;
+    while (t < NT) {
+      const dt = (tn - t) * tk;
+      t = tn;
+      tn = t - t % GS + GS;
+      let na = 0;
+      for (const b of bodies) {
+        b.x += b.vx * dt; b.y += b.vy * dt;
+        if (b.tn === t) ACT[na++] = b;
+        else if (b.tn < tn) tn = b.tn;
+      }
+      gNow = t / GS;
+      const now = simTime + t * tk;
+      work += 50 + bodies.length * (na + 3) + na * 10;
+      if (t % GS === 0) {
+        if (work > B && t < NT) { closeAll(t); ev = events(); grid(t / GS); break; }
+        grid(t / GS);
+      }
+      if (na) {
+        forceOn(ACT, na);
+        for (let k = 0; k < na; k++) {
+          const b = ACT[k];
+          b.vx += b.ax * (t - b.t0) * tk / 2; b.vy += b.ay * (t - b.t0) * tk / 2;
+          b.t0 = t;
+          trailTo(b, now);
+        }
+        ev = pairs.length > 0 || anyBH && tidal(true);
+        if (ev) {
+          // a merger or disruption: sync everyone first, so debris and merged
+          // bodies get true velocities, then restart from here
+          closeAll(t);
+          work += n * n;
+          ev = events();
+          if (t % GS === 0) grid(t / GS);   // new debris mustn't see the old bodies
+          if (t < NT) openAll(bodies, bodies.length, t);
+          for (const b of bodies) if (b.tn > t && b.tn < tn) tn = b.tn;
+        } else if (t < NT) {
+          openAll(ACT, na, t);
+          for (let k = 0; k < na; k++) if (ACT[k].tn < tn) tn = ACT[k].tn;
+        }
+      }
+      if (now - shedClock >= SHED_DT) { shedComets(); shedClock = Math.max(shedClock + SHED_DT, now - 4 * SHED_DT); }
+      if (now - lifeClock >= YEAR / 2) { updateLife(now - lifeClock, probes); probes = 0; lifeClock = now; }
+    }
+    ACT.length = 0;
+    fresh = !ev;
+    gNow = 0;
+    dustOn(hn, t / GS, GS * tk, B);
+    // Uneven kicks leave spurious momentum: remove it (not what debris took)
+    // and, if nothing was lost, restore the centre of mass. A uniform shift.
+    const p1 = momentum(P1), M = p1[2];
+    if (M) {
+      const ux = (p1[0] - p0[0] + lostX) / M, uy = (p1[1] - p0[1] + lostY) / M;
+      const keep = !lostX && !lostY && Math.abs(M / p0[2] - 1) < 1e-9;
+      const sx = keep ? (p0[3] + p0[0] * t * tk - p1[3]) / M : 0, sy = keep ? (p0[4] + p0[1] * t * tk - p1[4]) / M : 0;
+      for (const b of bodies) { b.vx -= ux; b.vy -= uy; b.x += sx; b.y += sy; }
+      for (let i = 0; i < T.n; i++) { T.vx[i] -= ux; T.vy[i] -= uy; T.x[i] += sx; T.y[i] += sy; }
+    }
+    simTime += t * tk;
+    return t * tk;
+  }
+
+  // Block-step dust: each grain leapfrogs (drift-kick-drift) through the heavy
+  // bodies on the grid, interpolated, in power-of-two steps down to 1/256 of a
+  // spacing. A new grain starts with the shortest step.
+  function dustOn(hn, ng, gt, B) {
+    const X = T.x, Y = T.y, VX = T.vx, VY = T.vy, w = hn * 4;
+    let work = 0;
+    for (let i = 0; i < T.n; i++) {
+      let g = T.b[i], x = X[i], y = Y[i], vx = VX[i], vy = VY[i], q = T.q[i], s = 1, hit = -1;
+      T.b[i] = 0;
+      if (q < 0) q = 1e30;
+      while (g % s) s /= 2;
+      while (g < ng) {
+        const need = 1 / (Math.sqrt(q) * gt), lo = (work += hn + 8) > 8 * B ? 1 : 1 / 256;
+        while (s > lo && s > need) s /= 2;
+        while (s * 2 <= need && g % (s * 2) === 0 && g + s * 2 <= ng) s *= 2;
+        while (g + s > ng) s /= 2;
+        const h = s * gt, gm = g + s / 2, g0 = Math.floor(gm), fr = gm - g0;
+        x += vx * h / 2; y += vy * h / 2;
+        let ax = 0, ay = 0;
+        q = 0;
+        // masses come from the next point: no pull from a star just torn apart
+        for (let k = 0, o = g0 * w, e = fr ? w : 0; k < hn; k++, o += 4) {
+          const m = HG[o + e + 2];
+          if (!m) continue;
+          const dx = HG[o] + (HG[o + w] - HG[o]) * fr - x, dy = HG[o + 1] + (HG[o + w + 1] - HG[o + 1]) * fr - y;
+          const r2 = dx * dx + dy * dy;
+          if (r2 < HG[o + e + 3]) { hit = k; break; }
+          const d2 = r2 + EPS2;
+          const f = m / (d2 * Math.sqrt(d2));
+          ax += f * dx; ay += f * dy;
+          if (f > q) q = f;
+        }
+        if (hit >= 0) break;
+        q *= ED;
+        vx += ax * h; vy += ay * h;
+        x += vx * h / 2; y += vy * h / 2;
+        g += s;
+      }
+      if (hit >= 0) {
+        let h = HB[hit];
+        while (h.into) h = h.into;
+        h.feed += 1.5;
+        removeTracer(i); i--;
+        continue;
+      }
+      X[i] = x; Y[i] = y; VX[i] = vx; VY[i] = vy;
+      if (q < 1e30) T.q[i] = q;
+    }
   }
 
   function resolveMerges() {
@@ -914,6 +1153,7 @@
     a.icy = aIcy && bIcy;
     a.feed += 30;
     b.dead = true;
+    b.into = a;
     if (selected === b) selected = a;
 
     const size = Math.max(a.r, b.r);
@@ -975,7 +1215,7 @@
 
   // Stars and planets that stray inside a black hole's tidal radius get torn
   // into a stream of debris before they can fall in.
-  function tidal() {
+  function tidal(dry) {
     let any = false;
     for (const h of bodies) {
       if (h.kind !== 'bh' || h.dead) continue;
@@ -983,7 +1223,7 @@
         if (b === h || b.dead || b.kind === 'bh' || (b.m > h.m && b.kind !== 'star')) continue;
         const dx = b.x - h.x, dy = b.y - h.y;
         const rt = 2.2 * b.r * Math.cbrt(h.m / b.m);
-        if (dx * dx + dy * dy < rt * rt) { shred(b, h); any = true; }
+        if (dx * dx + dy * dy < rt * rt) { if (dry) return true; shred(b, h); any = true; }
       }
     }
     if (any) bodies = bodies.filter(b => !b.dead);
@@ -991,6 +1231,7 @@
 
   function shred(b, h) {
     b.dead = true;
+    b.into = h;
     const isStar = b.kind === 'star';
     const n = isStar ? Math.round(clamp(280 * Math.cbrt(b.m / MSUN), 150, 520)) : b.icy ? 30 : 80;
     const dx = b.x - h.x, dy = b.y - h.y, d = Math.hypot(dx, dy) || 1;
@@ -1012,6 +1253,7 @@
     h.vy = (h.m * h.vy + b.m * b.vy) / pm;
     h.ax = (h.m * h.ax + b.m * b.ax) / pm;
     h.ay = (h.m * h.ay + b.m * b.ay) / pm;
+    lostX += 0.7 * b.m * h.vx; lostY += 0.7 * b.m * h.vy;
     h.m += b.m * 0.3;
     h.feed += isStar ? 260 : 60;
     refresh(h);
@@ -1028,6 +1270,8 @@
 
   function supernova(a) {
     const M = a.m;
+    lostX += 0.45 * M * a.vx; lostY += 0.45 * M * a.vy;
+    anyBH = true;
     a.m = M * 0.55;
     a.kind = 'bh';
     refresh(a);
@@ -1132,7 +1376,7 @@
       const what = lost.kind === 'planet' ? 'A planet' : `A ${massLabel(lost.m, lost.kind)} ${lost.kind === 'bh' ? 'black hole' : 'star'}`;
       pushEvent(`${what} was flung into interstellar space`, lost.kind === 'bh' ? 'bh' : lost.kind, 'lost', 2500);
     }
-    if (bodies.some(b => b.dead)) bodies = bodies.filter(b => !b.dead);
+    if (bodies.some(b => b.dead)) { bodies = bodies.filter(b => !b.dead); fresh = false; }
     if (selected && selected.dead) deselect();
     // dust goes only when it's far from the main group and from every heavy body
     const heavy = bodies.filter(isHeavy);
@@ -1144,20 +1388,11 @@
     }
   }
 
-  function recordTrails() {
-    for (const b of bodies) {
-      const i = b.th * 2;
-      b.trail[i] = b.x; b.trail[i + 1] = b.y;
-      b.th = (b.th + 1) % TRAIL;
-      if (b.tl < TRAIL) b.tl++;
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // Life: worlds that stay in the habitable zone long enough grow life, then a
   // civilization, then start launching probes.
   // ---------------------------------------------------------------------------
-  function updateLife(dt) {
+  function updateLife(dt, maxProbes = 8) {
     for (const b of bodies) {
       if (b.kind !== 'planet') continue;
       const F = fluxAt(b.x, b.y).F;
@@ -1188,8 +1423,7 @@
           }
         }
       }
-      // about four probes a simulated year, however much time this update covers
-      for (let k = b.life >= 3 ? dt / (0.25 * YEAR) : 0; k > 0; k--) {
+      for (let k = b.life >= 3 ? Math.min(maxProbes, dt / (0.25 * YEAR)) : 0; k > 0; k--) {
         if (rand() >= Math.min(1, k)) continue;
         const a = rand() * Math.PI * 2, sp = 3 + rand() * 4;
         addTracer(b.x + Math.cos(a) * b.r * 1.6, b.y + Math.sin(a) * b.r * 1.6,
@@ -1425,7 +1659,6 @@
     simTime = 0;
     frameN = 0;   // life and cull run on frame multiples; reset so seeded runs repeat exactly
     lifeClock = 0;
-    trailClock = 0;
     shedClock = 0;
     flash = 0;
     shake = 0;
@@ -1905,19 +2138,22 @@
     if (el) el.textContent = TOOLS[t].name;
   }
   // The speed slider is logarithmic: every step changes the rate by the same
-  // percentage, from hours a second to more than a year a second.
+  // percentage, from real time to a thousand years a second.
   const SPEED_STEPS = 1000;
   const rateToPos = r => Math.round(SPEED_STEPS * Math.log(r / RATE_MIN) / Math.log(RATE_MAX / RATE_MIN));
   const posToRate = p => RATE_MIN * Math.pow(RATE_MAX / RATE_MIN, p / SPEED_STEPS);
   function fmtRate(r) {
-    const d = r / YEAR * 365.25;
-    if (d < 1) { const h = d * 24; return h.toFixed(h < 10 ? 1 : 0) + ' hr/s'; }
-    if (d < 60) return d.toFixed(d < 10 ? 1 : 0) + ' days/s';
-    if (d < 365.25) return (d / 30.44).toFixed(1) + ' mo/s';
-    return (d / 365.25).toFixed(2) + ' yr/s';
+    const s = r / RATE_MIN, d = s / 86400, y = d / 365.25;   // simulated seconds, days, years a second
+    const f = (v, u) => v.toFixed(v < 10 ? 1 : 0) + u;
+    return s < 1.05 ? 'Real time' : s < 60 ? f(s, ' s/s') : s < 3600 ? f(s / 60, ' min/s') : d < 1 ? f(s / 3600, ' hr/s')
+      : d < 60 ? f(d, ' days/s') : d < 365.25 ? (d / 30.44).toFixed(1) + ' mo/s' : y.toFixed(y < 10 ? 2 : y < 100 ? 1 : 0) + ' yr/s';
+  }
+  function showRate() {
+    const txt = !paused && ach < rate * 0.9 ? '≈ ' + fmtRate(ach) : fmtRate(rate);
+    if (speedOut.textContent !== txt) speedOut.textContent = txt;
   }
   function setRate(r, fromSlider) {
-    rate = clamp(r, RATE_MIN, RATE_MAX);
+    ach = rate = clamp(r, RATE_MIN, RATE_MAX);
     const p = rateToPos(rate);
     if (!fromSlider) speedIn.value = p;
     speedIn.style.setProperty('--p', (100 * p / SPEED_STEPS) + '%');
@@ -2064,7 +2300,7 @@
     const ACTIONS = {
       '1': () => setTool('planet'), '2': () => setTool('comet'), '3': () => setTool('star'),
       '4': () => setTool('bh'), '5': () => setTool('dust'),
-      '[': () => nudgeRate(-25), ']': () => nudgeRate(25),
+      '[': () => nudgeRate(-20), ']': () => nudgeRate(20),
       t: toggleTrails, g: toggleWarp, z: toggleZones, o: toggleAssist,
       f: centerView, r: () => loadScene(sceneKey, true), h: showHelp, '?': showHelp,
       '=': () => zoomAt(VW / 2, VH / 2, cam.z * 1.25), '+': () => zoomAt(VW / 2, VH / 2, cam.z * 1.25),
@@ -2235,7 +2471,8 @@
       const X = sx(T.x[i]), Y = sy(T.y[i]);
       if (X < -pad || Y < -pad || X > VW + pad || Y > VH + pad) continue;
       let PX = sx(T.px[i]), PY = sy(T.py[i]);
-      if (Math.abs(PX - X) + Math.abs(PY - Y) < 0.6) PX = X - 0.6;
+      const d = Math.abs(PX - X) + Math.abs(PY - Y);
+      if (d < 0.6 || d > 150) { PX = X - 0.6; PY = Y; }
       const c = T.c[i];
       const path = paths[c] || (paths[c] = new Path2D());
       path.moveTo(PX, PY);
@@ -2684,19 +2921,25 @@
       // than DT. Slow speeds take one short step per frame, so motion stays
       // smooth; if a crowded scene would take too long, it runs slower instead.
       const want = rate * elapsed / 1000;
-      let sub = Math.max(1, Math.ceil(want / DT));
-      const dt = want / sub;
-      const n = bodies.length;
-      const heavy = bodies.reduce((c, b) => c + (isHeavy(b) ? 1 : 0), 0);
-      const work = n * (n - 1) / 2 + T.n * heavy + 1;
-      sub = Math.min(sub, Math.max(1, Math.floor(1.1e6 / work)));
-      for (let s = 0; s < sub; s++) {
-        step(dt);
-        // trail points and comet dust follow simulated time, so they look the
-        // same at every speed and frame rate
-        if (simTime - trailClock >= TRAIL_DT) { recordTrails(); trailClock += TRAIL_DT; }
-        if (simTime - shedClock >= SHED_DT) { shedComets(); shedClock += SHED_DT; }
+      let got = want;
+      if (want > 4 * DT) got = block(want, 1.5e6);
+      else {
+        let sub = Math.max(1, Math.ceil(want / DT));
+        const dt = want / sub;
+        const n = bodies.length;
+        const heavy = bodies.reduce((c, b) => c + (isHeavy(b) ? 1 : 0), 0);
+        const work = n * (n - 1) / 2 + T.n * heavy + 1;
+        sub = Math.min(sub, Math.max(1, Math.floor(1.1e6 / work)));
+        got = sub * dt;
+        trailS = 0;
+        for (let s = 0; s < sub; s++) {
+          step(dt);
+          // trail points and comet dust follow simulated time
+          for (const b of bodies) trailTo(b, simTime);
+          if (simTime - shedClock >= SHED_DT) { shedComets(); shedClock += SHED_DT; }
+        }
       }
+      if (elapsed > 0) ach += (got * 1000 / elapsed - ach) * 0.1;
       lights = bodies.filter(b => b.kind === 'star');
       if (frameN % 6 === 0) { updateLife(simTime - lifeClock); lifeClock = simTime; }
       if (frameN % 30 === 0) cull();
@@ -2733,7 +2976,7 @@
     const tRender = perf.on ? performance.now() : 0;
     render();
     if (perf.on) { perf.physics = tRender - tPhys; perf.render = performance.now() - tRender; }
-    if (frameN % 8 === 0) { updateHud(); updateCard(); }
+    if (frameN % 8 === 0) { updateHud(); updateCard(); showRate(); }
   }
 
   let resizeRaf = 0;
@@ -2755,7 +2998,7 @@
       aimMass: () => aim ? aimMass() : 0,
       aimStyle: m => aim ? aimStyle(m) : null,
       // engine constants and maths, so tests and benchmarks never keep their own copies
-      radiusFor, circV, seededRand, MSUN, IGNITE, COLLAPSE, DWARF, LIFE_MIN, COMET_ICE, SHED_DT, AU, YEAR, KMS, EPS2, DT, MAX_T, RATE_DEFAULT, TOOLS, perf,
+      radiusFor, circV, seededRand, MSUN, IGNITE, COLLAPSE, DWARF, LIFE_MIN, COMET_ICE, SHED_DT, AU, YEAR, KMS, EPS2, DT, MAX_T, RATE_MIN, RATE_DEFAULT, RATE_MAX, TOOLS, perf,
       sceneRate: key => SCENES[key].rate || RATE_DEFAULT,
       toScreen: o => [sx(o.x), sy(o.y)],
       // counters for the memory soak
