@@ -21,7 +21,7 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Syne:wght@800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Orbitron:wght@700;800&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -34,7 +34,7 @@
     --ion: #7fb6ff;
     --life: #7fe0b0;
     --lost: #d98c7a;
-    --display: "Syne", "Arial Black", system-ui, sans-serif;
+    --display: "Orbitron", "Arial Black", system-ui, sans-serif;
     --ui: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
   }
@@ -63,10 +63,11 @@
   .brand { display: grid; gap: 12px; text-shadow: 0 0 8px #000; }
   .mark {
     margin: 0;
-    font: 800 clamp(20px, 2.4vw, 28px)/0.92 var(--display);
-    letter-spacing: -0.005em;
+    font: 800 clamp(18px, 2.2vw, 26px)/1 var(--display);
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--ink);
+    color: #eaf6ff;
+    text-shadow: 0 0 6px rgba(127,200,255,.7), 0 0 18px rgba(127,182,255,.45);
   }
   .mark span { display: block; color: var(--gold); }
   .readout {
