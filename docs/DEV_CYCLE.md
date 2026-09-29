@@ -7,7 +7,9 @@ This guide covers how work flows from "what should we improve?" to a change that
 - `/audit` fills the backlog.
 - `/iterate` works through it one **batch** at a time: a group of Ready items that can safely ship together with a single test, review and push cycle.
 
-The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterate/SKILL.md`, and the grouping rules are in `.claude/agents/triage.md`. This guide is the overview.
+The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterate/SKILL.md`, and the grouping rules are in `.claude/agents/triage.md`. This guide is the overview, and `/devmanual` prints a short version of it.
+
+In Coldstarter's terms, Pocket Universe is framework size **Standard** (the full audit-and-iterate framework, because the game keeps changing) run on the **Lean** usage profile (Luke is on a Pro plan, so the cheapest way that does the job well). It would move to Full if the game gained other developers, a hosted service with uptime targets, or regulated data, and to Light if work dropped to occasional fixes.
 
 ## Quick reference
 
@@ -19,6 +21,8 @@ The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterat
 | `/iterate UX-104 solo` | Ship just that one item |
 | `/iterate B2 without UX-104` | Ship a batch minus some items |
 | `/iterate B3 on Opus` | Ship a batch on a higher implementer tier |
+| `/autoiterate` | Loop `/iterate` batch after batch without waiting for Luke, until the backlog is done or something needs him. `/autoiterate stop` finishes the batch in flight and stops. |
+| `/devmanual` | A short version of this guide: size and profile, life cycle, commands, the backlog's current state. `/devmanual full` prints this whole doc. |
 | `/audit` | Full review of the game by seven specialist agents, plus a Claude usage report, then triage into the backlog. The most expensive command, so run it rarely. |
 | `/audit usage` | Just the usage report and triage: no agents, tests or benchmarks. Cheap. |
 | `python tools/usage_report.py` | Where Claude usage went, per agent type, from the local session transcripts (no model tokens). `--since last` covers the period since the last `--save`. |

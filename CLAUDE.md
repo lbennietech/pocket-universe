@@ -12,7 +12,7 @@ A browser gravity sandbox by Luke Bennie: plain HTML, CSS and JavaScript on a 2D
 - `tools/build_artifact.py`: rebuilds `pocket-universe.html`, the copy published as a private claude.ai artifact (https://claude.ai/artifact/QMJGjmuBKfrCHBa8WvXdK5). That file is ignored by git.
 - `tools/usage_report.py`: prices this project's Claude Code usage from the local session transcripts (main session, each agent type, idle re-caching, `/code-review` levels, forks) and prints findings in the audit format, without spending model tokens. `/audit` runs it with `--since last --save`; the history is `.claude/usage-history.json`.
 - `tools/serve.py`: serves the game at http://localhost:8765/ for the Playwright browser tool (MCP) that agents use. It starts the server if it isn't running and waits until it's ready.
-- `.claude/agents/`: review and audit agents. `.claude/skills/`: `/audit` and `/iterate`. `.claude/hooks/` and `.claude/settings.json`: automatic checks. `.mcp.json`: the Playwright browser tool.
+- `.claude/agents/`: review and audit agents. `.claude/skills/`: `/audit`, `/iterate`, `/autoiterate` and `/devmanual`. `.claude/hooks/` and `.claude/settings.json`: automatic checks. `.mcp.json`: the Playwright browser tool.
 - `BACKLOG.md`: improvements found by audits, sorted by priority. Shipped items are in `BACKLOG_DONE.md`.
 
 ## Before every push
@@ -65,10 +65,12 @@ Checked by `tests/invariants.js`.
 - **Autoiterate:** `/autoiterate` loops that same `/iterate` cycle batch after batch without waiting for Luke: intake of his new requests between batches, the full pipeline for each batch, and a stop only when the backlog is done, something needs his decision, or something is broken. Started as `/loop /autoiterate`, it also schedules its own wake-up at a session limit's reset and carries on. On any limit error, check the real clock (`date`) first: if the reset has passed, just resume.
 - **Bench:** `python bench/run_bench.py` (run), `--compare` (same-session A/B against the upstream `index.html`, fails on a regression over 5%; it falls back to the baseline, with a warning, if the upstream can't run the current scenes), `--compare --against baseline` (against the stored baseline) and `--baseline` (record a new baseline, only when the numbers genuinely improved or the measuring method or scenarios changed). The baseline records its method and a hash of the scenario definitions, and comparing with it refuses a mismatch in either.
 - **A/B experiments:** when a backlog item is a big architectural choice (for example a quadtree versus a uniform grid, Canvas2D versus WebGL, or physics on the main thread versus a Worker), create two git worktrees, one per approach. Implement both minimally, benchmark each, keep the winner, and record both results in the item's **Done** entry.
+- **Dev manual:** `/devmanual` prints a short guide to working on the project (size and profile, life cycle, commands, the backlog's current state, and when the process should change); `/devmanual full` prints `docs/DEV_CYCLE.md`. Keep the skill in step with that doc.
 - **Unattended audits:** not set up. Luke chose not to run a nightly audit for now.
 
 ### Model & effort
 
+- **Usage profile Lean, framework size Standard** (Coldstarter's terms; recorded 2026-09-29). Lean because Luke is on a Pro plan and was hitting the session limit a couple of hours into sessions; Standard because the game keeps changing through the backlog and `/iterate`.
 - The session runs on Sonnet (the `sonnet` alias, now Sonnet 5.5) at **medium** effort, and compacts its context at 200K tokens; all three are set in `.claude/settings.json` (`model`, `effortLevel`, `autoCompactWindow`). Switch to Opus yourself for hard reasoning that isn't already covered by an implementer tier (see below) or by `physics-reviewer`/`perf-profiler`.
 - Use `/effort high` for hard reasoning (integrator changes, collision edge cases, determinism bugs, spatial-structure rewrites, threading or architecture changes), then return to medium.
 - Avoid xhigh and max: they're rarely worth it here and burn Pro usage limits fast.
