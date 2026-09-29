@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Audit the whole of Pocket Universe for improvements - run the benchmarks and invariant tests, dispatch the six specialist agents in parallel, triage their findings into BACKLOG.md and summarise the top five items and the batches. Use when Luke asks for an audit, a backlog refresh or "what should we improve next".
+description: Audit the whole of Pocket Universe for improvements - run the benchmarks and invariant tests, dispatch the specialist agents in parallel (including a docs accuracy check), triage their findings into BACKLOG.md and summarise the top five items and the batches. Use when Luke asks for an audit, a backlog refresh or "what should we improve next".
 ---
 
 # /audit
@@ -31,6 +31,7 @@ Launch these agents together, in the background, each with a short brief that in
 - `efficiency-auditor`
 - `code-quality-reviewer`
 - `playtester` (ask for audit-format findings from the three personas, not a push verdict)
+- `docs-writer` (audit mode: check every doc against the current code and game, and flag features that shipped without docs)
 
 Tell each one that this is a whole-game audit, that it must not edit anything, and that findings without evidence will be discarded. If the project's agents aren't available as agent types (for example the session started outside this folder), run `general-purpose` agents and tell each to follow the matching file in `.claude/agents/`.
 

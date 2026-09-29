@@ -8,6 +8,8 @@ argument-hint: "[batch ID, item ID, 'ID solo', or nothing]"
 
 Wraps the pre-push routine in `CLAUDE.md` and extends it with the backlog, batches and the benchmarks. Keep the existing routine's behaviour; this adds to it.
 
+`/iterate` runs **one** batch and stops. To keep going batch after batch without Luke's input, use `/autoiterate` (or `/loop /autoiterate` for unattended runs that must resume after session limits); it loops this same pipeline.
+
 The unit of work is a **batch**: a group of Ready items that `triage` has put together because they share a category, a tier and review needs (see the Batches table in `BACKLOG.md` and rule 9 in `.claude/agents/triage.md`). One batch goes through implement, test, review and ship once, however many items it holds. A `solo` batch is a single item and runs exactly like a classic one-item iteration.
 
 ## 0. Intake Luke's new requests first
@@ -18,6 +20,14 @@ Luke often adds requests mid-run. Before picking a batch (and again whenever new
 - **Consolidate with what's already queued.** Check every new request against the Ready and In progress rows. If it overlaps an existing item, merge it into that item (widen its goal, add the evidence) instead of adding a near-duplicate. If it supersedes an item, move the old one to Rejected with "superseded by <ID>".
 - **Then have `triage` regroup the batches and refresh priorities** across the whole Ready list, so the new work lands in the right batch and order. Items Luke explicitly pins (for example "very important", "highest priority") keep their pinned position.
 - Tell Luke in one or two lines what was merged, added or re-ordered.
+
+## When an agent fails on a usage or rate limit
+
+An agent that dies with a 429 or "you've hit your session limit · resets <time>" is not a reason to pause or reroute the batch. Check the actual clock first (`date` in the shell; there's no other reliable clock), then:
+
+- **Reset time already passed** (notifications can arrive late): resume the same agent immediately with SendMessage (it keeps its context). Check `git status` first for any half-finished edits.
+- **Reset still in the future:** tell Luke the real reset time and how long that is from now, carry on with work that doesn't need that agent, and resume it right after the reset. Don't describe the limit as model-specific unless the error says so.
+- **A 429 without a reset time:** retry once before treating it as a real limit.
 
 ## 1. Pick the batch and its tier
 
