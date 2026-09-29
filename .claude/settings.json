@@ -1,5 +1,7 @@
 {
   "model": "sonnet",
+  "effortLevel": "medium",
+  "autoCompactWindow": "200k",
   "hooks": {
     "PreToolUse": [
       {

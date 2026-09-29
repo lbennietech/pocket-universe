@@ -3,6 +3,7 @@ name: triage
 description: Turns audit and review findings into Pocket Universe's BACKLOG.md - discards findings without evidence, merges duplicates, scores priority as impact divided by effort, and keeps existing items' status. Use at the end of /audit and /iterate.
 model: sonnet
 effort: medium
+maxTurns: 30
 tools: Read, Edit, Write, Grep, Glob
 ---
 
@@ -20,18 +21,19 @@ You maintain `BACKLOG.md` for Pocket Universe. You receive findings from other a
 2. **Merge duplicates** across agents: keep the clearest title, combine the evidence, keep the higher impact and the lower effort only if the evidence supports it.
 3. **Score** priority = impact ÷ effort (two decimals). Break ties by risk: fixes for broken or risky behaviour first, then smaller changes first.
 4. **Check the pillars** in `CLAUDE.md`. A proposal that breaks a pillar goes to "Rejected / won't do" with the reason.
-5. **Preserve status.** Never delete or reorder items in "In progress", "Done" or "Rejected / won't do". If a new finding matches an existing Ready item, update that item's evidence instead of adding a duplicate. If it matches a Done item, it's a regression: add it as new with a note.
+5. **Preserve status.** Never delete or reorder items in "In progress", "Done" or "Rejected / won't do". Done items live in `BACKLOG_DONE.md`, not `BACKLOG.md`: don't read it whole, `Grep` it for the finding's subject. If a new finding matches an existing Ready item, update that item's evidence instead of adding a duplicate. If it matches a Done item, it's a regression: add it as new with a note.
 6. **IDs:** keep the agent's area prefix; number new items after the highest existing number for that prefix (for example `PERF-004`).
-7. **Write** the Ready table sorted by priority (highest first), update the `_Last audit:` date, and keep each row to one line. Put long evidence in the Evidence column as a short pointer (file:line, metric, screenshot name).
+7. **Write** the Ready table sorted by priority (highest first), update the `_Last audit:` date, and keep each row to one line. Put long evidence in the Evidence column as a short pointer (file:line, metric, screenshot name). Work in one pass to keep your usage down: read `BACKLOG.md` once, then either a few `Edit`s (when only a few rows change) or a single `Write` of the whole file (when regrouping touches most rows). Don't re-read it afterwards to check; `Grep` a row if you must.
 8. **Tier and Est. time (added 2026-09-28):** every Ready row gets a **Tier** and an **Est. time**, following the same rule `/iterate` uses to pick an implementer (see "Model & effort" in `CLAUDE.md`):
    - **Deep**: the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
-   - **Opus**: a physics or perf area item, or anything at effort 2 or more.
-   - **Light**: everything else (ux/design/efficiency/code at effort 1).
+   - **Opus**: a physics or perf area item, anything at effort 2 or more, and any change to the logic of the repo's safety gates (`.claude/hooks/`, `tools/build.py`, the test runner's pass/fail logic), whatever its effort. Added 2026-09-29: the Sonnet-tier fix to the push gate's command parsing needed two review rounds that found 5 and then 10 real bugs, which cost more than an Opus implementation would have.
+   - **Light**: everything else (ux/design/efficiency/code/docs at effort 1).
    Estimate the time as a rough range for the whole `/iterate` pipeline (implement, test, review, ship), not just the coding: Light effort-1 items are usually 10-20 min; Opus effort-1 items 15-25 min (add a few minutes if it also needs a physics review); Opus effort-2 items 20-35 min; Opus effort-3 or Deep items 35-90+ min depending on scope. These are rough planning estimates, not measurements — say so if asked, and don't spend time trying to make them precise.
 9. **Batches (added 2026-09-28):** every time you write the Ready table, regroup all Ready items into batches so `/iterate` can ship several at once with one test, review and push cycle. Give each Ready row a **Batch** ID and rewrite the **Batches** table. Batch IDs (`B1`, `B2`, …) are regenerated every time, numbered by the priority of their best item, so `B1` always holds the top Ready item.
    - **Category.** Put each item in exactly one:
      - `ui`: CSS, layout, text, blurbs, UI affordances, the inspector's display. Doesn't touch the simulation.
      - `tooling`: only `tests/`, `bench/` or `tools/` change. The game itself doesn't change.
+     - `docs`: only `README.md` and `docs/` change (DOC items). `docs-writer` implements them. Size cap as for `ui`.
      - `sim`: touches gravity, collisions, sizes, masses, time-stepping, dust behaviour, life rules or a scene's `build()`/`rate`. These need a physics review.
      - `perf`: speed work on rendering or physics that isn't Deep tier.
      - `solo`: Deep tier, an A/B experiment, effort 3, or anything that would conflict with the other items it would otherwise be grouped with. A solo item is its own one-item batch.
@@ -41,6 +43,7 @@ You maintain `BACKLOG.md` for Pocket Universe. You receive findings from other a
    - **Reviews** (the `/iterate` skill uses this column):
      - `ui`: code-review + playtester.
      - `tooling`: code-review only. No playtester, since the game doesn't change.
+     - `docs`: code-review (low) only, plus physics-reviewer when `docs/SIMULATION.md` changes.
      - `sim`: code-review + playtester + one physics-reviewer for the whole batch.
      - `perf`: code-review + playtester + benchmark focus, plus physics-reviewer if the simulation changes.
      - `solo`: whatever that item alone needs.
@@ -76,8 +79,7 @@ _Last audit: YYYY-MM-DD_
 
 ## Done
 
-| ID | Title | Tier | Actual time | Result (metric delta / notes) | Commit |
-|----|-------|------|-------------|-------------------------------|--------|
+Shipped items live in `BACKLOG_DONE.md` (...)
 
 ## Rejected / won't do
 

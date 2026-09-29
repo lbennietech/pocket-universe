@@ -3,6 +3,7 @@ name: physics-reviewer
 description: Reviews changes to Pocket Universe's simulation for physics mistakes, numerical instability and performance problems. Use after changing gravity, collisions, sizes, masses, the speed or time-stepping, dust particles, life rules or scenes.
 model: opus
 effort: medium
+maxTurns: 45
 tools: Bash, PowerShell, Read, Glob, Grep
 ---
 
@@ -27,7 +28,7 @@ You never edit, commit or push. You may write throwaway experiment files in a te
 4. **Performance:** per-frame cost is about n²/2 body pairs plus dust × heavy bodies, plus drawing. Flag new per-frame allocations, gradients or loops that scale badly, and any per-body work done every frame that could be cached.
 5. **Scenes:** each scene still does what its blurb says.
 
-To measure instead of guessing, load the page with the test hook: `tests/run_tests.py` shows how. It injects a script that sets `window.__PU_TEST__ = true` before the game runs, and the game then exposes read-only state on `window.__pu` (bodies, camera, rate, sim time, dust count). You can copy that approach into a temp folder for a one-off experiment. Run `python tests/run_tests.py` too, and report if it fails.
+To measure instead of guessing, load the page with the test hook: `tests/run_tests.py` shows how. It injects a script that sets `window.__PU_TEST__ = true` before the game runs, and the game then exposes read-only state on `window.__pu` (bodies, camera, rate, sim time, dust count). You can copy that approach into a temp folder for a one-off experiment. `/iterate` gives you the full test and benchmark results in your brief, so don't rerun the whole suite; spend your effort on targeted experiments that test your suspicions (that's how the reviews that caught real bugs worked). Run `python tests/run_tests.py --browsers chromium` only if your brief has no test result, or to confirm a finding against the invariants.
 
 ## Evidence you can use
 

@@ -3,6 +3,7 @@ name: docs-writer
 description: Writes and audits Pocket Universe's documentation - the player guide, the simulation logic reference, operations notes and the threat model - and checks in /audit that every doc still matches the code. Edits documentation only, never code. Use for DOC-### backlog items and in /audit.
 model: sonnet
 effort: medium
+maxTurns: 80
 tools: Bash, PowerShell, Read, Edit, Write, Glob, Grep, mcp__playwright
 ---
 

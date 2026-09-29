@@ -30,7 +30,7 @@ The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterat
 
 ## The backlog
 
-`BACKLOG.md` has five sections: **Batches**, **Ready**, **In progress**, **Done** and **Rejected**.
+`BACKLOG.md` has four working sections: **Batches**, **Ready**, **In progress** and **Rejected**. Shipped items are in **Done** in `BACKLOG_DONE.md`, kept separate since 2026-09-29 so that everything reading the backlog doesn't pay for the whole history.
 
 Each Ready item has:
 
@@ -55,8 +55,8 @@ python -c "s=open('BACKLOG.md',encoding='utf-8').read().split('## Ready')[1].spl
 The Tier is the implementer agent that takes the item. It follows the rule in "Model & effort" in `CLAUDE.md`:
 
 - **Deep** (`implementer-deep`, Opus at high effort): the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments.
-- **Opus** (`implementer-opus`, Opus at medium effort): a physics or perf area item, or anything at effort 2 or more.
-- **Light** (`implementer`, Sonnet at medium effort): everything else (ux, design, efficiency or code at effort 1).
+- **Opus** (`implementer-opus`, Opus at medium effort): a physics or perf area item, anything at effort 2 or more, or a change to the safety gates' logic (hooks, the build, the test runner's pass/fail logic).
+- **Light** (`implementer`, Sonnet at medium effort): everything else (ux, design, efficiency, code or docs at effort 1).
 
 ### Est. time and Actual time
 
@@ -114,21 +114,21 @@ Simulation changes interact through shared physics, so `sim` and `perf` stay sma
    - It runs the tests once at the end.
    - Two agents never share a working tree.
    - An item that turns out riskier than its category suggests is skipped and goes back to Ready.
-3. **Test.** `python tests/run_tests.py` must pass everywhere, and `python bench/run_bench.py --compare` must not regress by more than 5%.
+3. **Test.** `python tests/run_tests.py --screens` must pass everywhere (the screenshots it saves are what the playtester looks at, and the pass count goes into every reviewer's brief so nobody re-runs the suite), and `python bench/run_bench.py --compare` must not regress by more than 5%.
    - `--compare` already times the upstream `index.html` and the working copy in the same session, so machine drift cancels out. If it warns that it fell back to the stored baseline, a failure may still be drift.
-4. **Review.** Run the batch's reviews once (see the table above), briefing each reviewer with the full item list.
-5. **Triage.** Blockers go back to the same implementer via SendMessage, then retest.
+4. **Review.** Run the batch's reviews once (see the table above), briefing each reviewer with the full item list. `/code-review` always gets a level: `low` for `ui`, `docs` and `tooling`, `medium` for `sim`, `perf`, `solo` and safety-gate changes, `high` only for Deep items or when Luke asks.
+5. **Fix blockers.** Blockers go back to the same implementer via SendMessage, then retest.
    - An item that can't be fixed quickly is dropped from the batch rather than holding up the rest.
-   - Everything else goes to the backlog.
+   - Everything else waits for the single `triage` call in step 7.
 6. **Ratchet the baseline** with `python bench/run_bench.py --baseline`, only if the numbers genuinely improved or the measuring method changed (`--compare` says so when it did).
    - Machine drift doesn't count. If a re-baseline is only needed because the machine slowed down, ask Luke first and commit it separately.
 7. **Finish.**
-   - Each item gets its own Done row: Tier, result and commit. The batch's Actual time goes on its first item.
+   - Each item gets its own Done row in `BACKLOG_DONE.md`: Tier, result and commit. The batch's Actual time goes on its first item.
    - Commit per item when the diffs separate cleanly. Otherwise use one commit that lists every ID.
    - Update `README.md` if controls or features changed.
    - Commit the `src/` changes with the rebuilt `index.html`, and push. A hook blocks a commit whose `index.html` isn't current with its `src/` (it checks what the commit would contain, including the command's own `git add`), and blocks a push if any pushed commit's `index.html` is stale; it then reruns the tests and the benchmark comparison, and blocks the push if any fails.
    - If the game changed, run `python tools/build_artifact.py` and republish the artifact.
-   - `triage` regroups the remaining Ready items if anything was dropped or added.
+   - One `triage` call files the reviewers' non-blocking findings and regroups the remaining Ready items (skipped if there's nothing to add and nothing was dropped).
    - Claude reports what shipped as a table (ID, Tier, Est. time, change), then the Actual vs. Est. time, the test and benchmark numbers, and the next batch.
 
 ## `/audit`: find what to improve
@@ -136,7 +136,7 @@ Simulation changes interact through shared physics, so `sim` and `perf` stay sma
 The most expensive command, so run it rarely: when the Ready list gets thin, or after a big feature lands.
 
 1. **Collect evidence.** Runs `python tests/run_tests.py --screens` and `python bench/run_bench.py --compare`.
-2. **Send out the specialists in parallel.** perf-profiler, physics-reviewer, ux-reviewer, game-designer, efficiency-auditor, code-quality-reviewer and playtester each review the whole game, read-only. A finding without evidence is discarded.
+2. **Send out the specialists in parallel.** perf-profiler, physics-reviewer, ux-reviewer (which also plays the playtester's three personas), game-designer, efficiency-auditor, code-quality-reviewer and docs-writer each review the whole game, read-only, starting from step 1's results instead of re-running them. A finding without evidence is discarded. A focused audit (`/audit perf`, `/audit phones`) sends only the agents that cover the focus.
 3. **Triage.** `triage` drops findings without evidence, merges duplicates, scores priority, gives each item a Tier and Est. time, regroups the batches, and updates `BACKLOG.md`, keeping the status of existing items.
 4. **Report.** A summary of the headline numbers, the top five Ready items, the batches and anything that needs Luke's decision. It commits `BACKLOG.md` but doesn't push.
 
@@ -162,12 +162,15 @@ These are always `solo` batches on the Deep tier.
 
 ## Keeping usage down
 
-Each agent's model and effort are set in its file in `.claude/agents/` and listed in "Model & effort" in `CLAUDE.md`. The session defaults to Sonnet at medium effort (`.claude/settings.json`). The implementer agents name their model explicitly, so they keep it whatever the session runs on, and so do `physics-reviewer` and `perf-profiler`. Switch models at the start of a session rather than partway through, because prompt caching is per model. Beyond that:
+Luke is on a Pro plan. Each agent's model, effort and turn cap are set in its file in `.claude/agents/` and listed, with the reasons, in "Model & effort" in `CLAUDE.md`, which also summarises the 2026-09-29 usage review they came from. The session runs on Sonnet at medium effort and compacts at 200K tokens (`.claude/settings.json`). The implementer agents name their model explicitly, so they keep it whatever the session runs on, and so do `physics-reviewer` and `perf-profiler`. Switch models at the start of a session rather than partway through, because prompt caching is per model. In rough order of what they save:
 
+- Keep the main session lean: it re-reads its whole context every turn, and was about half of all usage. Let it compact, read parts of big files rather than whole ones, and `/clear` between batches when running `/iterate` by hand (see "Keeping this session lean" in `.claude/skills/iterate/SKILL.md`).
+- Treat Deep `solo` items and A/B experiments as the big spends they are (the one A/B experiment so far was about a fifth of all usage); `/autoiterate` asks before starting one.
+- Name the `/code-review` level; `high` fans out to many sub-agents.
+- Don't duplicate work: the tests and the benchmark run once per round, and reviewers get the results in their brief.
 - Let batching do the work: one test, review and push cycle per batch instead of per item.
 - Prefer many `/iterate` runs to frequent audits.
 - Keep the session at medium effort, and use `/effort high` only where it's clearly needed.
-- The expensive work is `solo` Deep items and A/B experiments.
 
 ## Example: three batches
 

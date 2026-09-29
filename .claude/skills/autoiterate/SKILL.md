@@ -23,9 +23,11 @@ There's one command, with a `stop` argument; no separate "off" command is needed
 Repeat until a stop condition:
 
 1. **Intake.** Run step 0 of `/iterate` (`.claude/skills/iterate/SKILL.md`): fold any requests Luke sent since the last batch into the backlog, consolidate, then have `triage` regroup and refresh priorities, keeping his pins.
-2. **Pick** the next batch: `B1`, or the next one whose dependencies are met. Skip, don't stall on, a batch waiting on Luke's decision.
+2. **Pick** the next batch: `B1`, or the next one whose dependencies are met. Skip, don't stall on, a batch waiting on Luke's decision. Treat a Deep-tier `solo` batch or an A/B experiment as needing Luke's go-ahead unless he's already given it for that item: the one A/B run so far (PERF-010) used about a fifth of all the project's usage up to then, and Luke is on a Pro plan. Ask once, and carry on with other batches meanwhile.
 3. **Run it through the whole `/iterate` pipeline**, steps 1 to 7: implement, test, benchmark, review, triage, ratchet, finish (commit, push, record the hash).
 4. **Report in two or three lines:** what shipped, anything dropped and why, and the next batch. Don't wait for a reply; go straight to step 1.
+
+Follow "Keeping this session lean" in `/iterate` throughout: a long unattended run is exactly where this session's context grows. It compacts at 200K by itself; afterwards, rebuild state from `BACKLOG.md`'s In progress rows, `git status` and ListAgents.
 
 Between steps, while agents work in the background, don't end a turn idle: either have an agent or command in flight (its notification resumes the session), have a wake-up scheduled, or have stopped for one of the reasons below.
 

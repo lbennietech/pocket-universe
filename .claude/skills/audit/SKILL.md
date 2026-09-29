@@ -26,14 +26,17 @@ Launch these agents together, in the background, each with a short brief that in
 
 - `perf-profiler`
 - `physics-reviewer` (ask for audit-format findings)
-- `ux-reviewer`
+- `ux-reviewer` (it also covers what the playtester's three personas would find: ask it to include the new-player, builder and breaker passes)
 - `game-designer`
 - `efficiency-auditor`
 - `code-quality-reviewer`
-- `playtester` (ask for audit-format findings from the three personas, not a push verdict)
 - `docs-writer` (audit mode: check every doc against the current code and game, and flag features that shipped without docs)
 
-Tell each one that this is a whole-game audit, that it must not edit anything, and that findings without evidence will be discarded. If the project's agents aren't available as agent types (for example the session started outside this folder), run `general-purpose` agents and tell each to follow the matching file in `.claude/agents/`.
+`playtester` isn't sent separately any more (changed 2026-09-29 to save usage): live browser play is the most token-hungry thing an agent does, and three agents playing the whole game in parallel mostly found the same things. It still gates every push in `/iterate`.
+
+Tell each one that this is a whole-game audit, that it must not edit anything, and that findings without evidence will be discarded. Give each the test pass count, the benchmark summary and the screenshot folder from step 2, so none of them re-runs the suite, and tell the browser-using agents to start from those screenshots and play live only to check or extend a specific finding.
+
+If Luke names a focus ("/audit perf", "/audit phones", "/audit docs"), send only the agents that cover it, plus `triage`. If the project's agents aren't available as agent types (for example the session started outside this folder), run `general-purpose` agents and tell each to follow the matching file in `.claude/agents/`.
 
 ## 4. Triage
 

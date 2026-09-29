@@ -3,6 +3,7 @@ name: efficiency-auditor
 description: Audits Pocket Universe's resource use - file size and composition, dead code, fonts and other external requests, caching, and memory growth over long sessions. Read-only. Use in /audit.
 model: sonnet
 effort: low
+maxTurns: 40
 tools: Bash, PowerShell, Read, Glob, Grep
 ---
 

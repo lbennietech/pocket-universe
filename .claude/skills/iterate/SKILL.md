@@ -29,6 +29,15 @@ An agent that dies with a 429 or "you've hit your session limit · resets <time>
 - **Reset still in the future:** tell Luke the real reset time and how long that is from now, carry on with work that doesn't need that agent, and resume it right after the reset. Don't describe the limit as model-specific unless the error says so.
 - **A 429 without a reset time:** retry once before treating it as a real limit.
 
+## Keeping this session lean
+
+This session re-reads its whole context on every turn, so it's the most expensive part of the pipeline: up to 2026-09-29 it was about half of the project's usage, mostly from one session that ran for a day and a half and grew to about 740K tokens. So:
+
+- `.claude/settings.json` sets `autoCompactWindow` to 200K, so long runs compact instead of growing. After a compaction, rebuild state from the In progress rows of `BACKLOG.md`, `git status`, and ListAgents (for agents you may need to resume), rather than re-reading files you'd already read.
+- Don't Read large files whole here: use `Grep`, or `Read` with an offset and limit. That goes for `BACKLOG.md`, agent transcripts and long test or benchmark logs (take the summary lines). Images cost a lot: only open one when you need to see it.
+- Let agents do the reading. Their briefs should point at files, not paste them, and their reports should be short.
+- When Luke runs `/iterate` by hand, suggest `/clear` between batches: nothing in the pipeline depends on this session's memory, since the backlog and git hold the state.
+
 ## 1. Pick the batch and its tier
 
 - **What to run:**
@@ -36,18 +45,22 @@ An agent that dies with a 429 or "you've hit your session limit · resets <time>
   - `$ARGUMENTS` is an item ID: run the batch that item belongs to. If Luke adds `solo` (`/iterate UX-104 solo`), run only that item.
   - `$ARGUMENTS` is empty: run the batch containing the top Ready item (`B1`).
   - Luke can drop items ("/iterate B2 without UX-104") or override the tier ("/iterate B3 on Opus").
-- If the Batches table is missing, or doesn't match the Ready rows (items listed that aren't in Ready, Ready items with no batch), have `triage` regroup first. It runs on Sonnet at low effort, so this is cheap.
+- If the Batches table is missing, or doesn't match the Ready rows (items listed that aren't in Ready, Ready items with no batch), have `triage` regroup first.
+- Read only the parts of `BACKLOG.md` you need (the Batches table and the batch's Ready rows, via `Grep` or a Read with an offset and limit), not the whole file; shipped items are in `BACKLOG_DONE.md`, which you only append to.
 - Before starting, tell Luke: the batch ID, category, tier, the items (ID + short title), which reviews it needs, and its Est. time.
 - Move every item in the batch to **In progress**, keeping its Batch, Tier and Est. time columns, and add today's date.
 - If an item is a big architectural choice (a spatial structure, WebGL, a Worker), it's `solo`. Follow the A/B worktree convention in `CLAUDE.md` instead of picking one approach up front.
 - **Choose the implementer** (this should match the batch's Tier; if it doesn't, apply this rule and say so):
   - **Deep** (`implementer-deep`, Opus at high effort): the integrator, time-stepping, collisions and merges, determinism, spatial structures, Workers or threading, and A/B experiments. These are always `solo`.
-  - **Opus** (`implementer-opus`, Opus at medium effort): physics or perf area items, or anything at effort 2 or more.
+  - **Opus** (`implementer-opus`, Opus at medium effort): physics or perf area items, anything at effort 2 or more, and changes to the logic of the safety gates (`.claude/hooks/`, `tools/build.py`, the test runner's pass/fail logic).
   - **Light** (`implementer`, Sonnet at medium effort): everything else (ux, design, efficiency or code items at effort 1).
+  - A `docs` batch (DOC items) goes to `docs-writer` (Sonnet at medium effort) instead of an implementer.
 
 ## 2. Implement
 
 Brief **one** implementer agent with every item in the batch: each item's full row (ID, area, impact, effort, evidence) and its proposal. It works through them one at a time as isolated edits. For each item, it makes the **smallest reasonable change** that delivers it, in the matching `src/` files, never the built `index.html` (plus tests if the behaviour is new), using `rand()` never `Math.random()`, and adding or extending a check in `tests/harness.js` or `tests/invariants.js` for new behaviour. It runs the tests once at the end (they rebuild `index.html` from `src/` first) and reports per item what changed, citing `src/<file>:line` or function names. It never commits or pushes. Point it at the `src/` files the items touch (`docs/ARCHITECTURE.md` lists what's in each), so it doesn't need to read the rest.
+
+Use the typed agents, not `fork`: a fork starts with a copy of this whole conversation, so each of its turns costs as much as one of yours. If an agent stops at its `maxTurns` cap (its report says the output is partial), resume it with SendMessage rather than starting a new one.
 
 Never run two implementer agents on the same working tree at once: they'd overwrite each other's uncommitted edits. Only split a batch across agents with separate git worktrees, as in the A/B convention.
 
@@ -55,7 +68,7 @@ If the implementer flags an item as riskier than its category suggests (for exam
 
 ## 3. Test
 
-- `python tests/run_tests.py`: every check must pass, including the physics invariants.
+- `python tests/run_tests.py --screens`: every check must pass, including the physics invariants. `--screens` also saves the screenshots, so the playtester reads them instead of running the whole suite again. Put the pass count (and the benchmark summary below) in every reviewer's brief, so none of them re-runs these.
 - `python bench/run_bench.py --compare`: a same-session A/B against the upstream `index.html` (normally `origin/main`), so machine drift between sessions cancels out. On a regression over the threshold, find which item in the batch caused it, then fix it or drop that item from the batch. If you drop or abandon an item, move it back to Ready (or to Rejected) and record why.
 
 ## 4. Review
@@ -64,19 +77,22 @@ Run the reviews in the batch's **Reviews** column once, for the whole batch:
 
 | Category | Reviews |
 |---|---|
-| `ui` | `/code-review` + `playtester` |
-| `tooling` | `/code-review` only (the game doesn't change, so no playtest) |
-| `sim` | `/code-review` + `playtester` + one `physics-reviewer` for the whole batch |
-| `perf` | `/code-review` + `playtester` + careful benchmark reading; add `physics-reviewer` if the simulation changed |
-| `solo` | whatever that one item needs by the rules above |
+| `ui` | `/code-review low` + `playtester` |
+| `docs` | `/code-review low` only (it checks the docs against the code); add `physics-reviewer` if `docs/SIMULATION.md` changed. No playtest or republish. |
+| `tooling` | `/code-review low` only (the game doesn't change, so no playtest); `/code-review medium` if it changes a safety gate's logic |
+| `sim` | `/code-review medium` + `playtester` + one `physics-reviewer` for the whole batch |
+| `perf` | `/code-review medium` + `playtester` + careful benchmark reading; add `physics-reviewer` if the simulation changed |
+| `solo` | whatever that one item needs by the rules above, at `medium` |
 
-Brief each reviewer with the full list of items in the batch and what each one should do, so it can check each item by name. Deep-tier items already got Opus at high effort during implementation, so they don't need a separate high-effort physics pass.
+Always give `/code-review` its level: with none, it reuses whatever level was typed last. Don't use `high` unless Luke asks for it, or for a Deep-tier `solo` item (the integrator and its kin). The two `high` reviews of PERF-010 (2026-09-28) fanned out to ten sub-agents between them and cost about 7% of all the project's usage up to then, each several times a `medium` review. They earned it on that change (they found stale snapshots after mid-step merges, suppressed probes and a per-frame allocation that the physics-reviewer missed), which is why Deep items keep the option.
+
+Brief each reviewer with the full list of items in the batch and what each one should do, so it can check each item by name, plus the test and benchmark results from step 3. Deep-tier items already got Opus at high effort during implementation, so they don't need a separate high-effort physics pass.
 
 If the project's agents aren't available as agent types, run `general-purpose` agents told to follow the matching file in `.claude/agents/`.
 
 ## 5. Triage the reviews
 
-Pass the reviewers' findings to `triage`. Send blockers back to the same implementer agent from step 2 via SendMessage (it keeps the context from its first pass), then repeat steps 3 and 4 for the fix. If a blocker can't be fixed quickly, drop just that item from the batch (revert its edits, return it to Ready with the reason) rather than holding up the rest. Everything else goes to the backlog.
+Send blockers back to the same implementer agent from step 2 via SendMessage (it keeps the context from its first pass, and its one-hour prompt cache usually survives the reviews), then repeat steps 3 and 4 for the fix, re-running only the reviews that the fix could affect. If a blocker can't be fixed quickly, drop just that item from the batch (revert its edits, return it to Ready with the reason) rather than holding up the rest. Keep the non-blocking findings for the single `triage` call in step 7; don't call `triage` separately here.
 
 ## 6. Ratchet the baseline
 
@@ -84,10 +100,10 @@ Pass the reviewers' findings to `triage`. Send blockers back to the same impleme
 
 ## 7. Finish
 
-- Move every shipped item to **Done**, each with its own row: its Tier, its result (the metric delta, or what changed for the player) and the commit hash. Record the batch's **Actual time** once (rough wall-clock for the whole run, including fix rounds and troubleshooting) on the first item. The other rows say "part of batch Bn (see ID)".
+- Move every shipped item out of In progress and append it to the Done table in `BACKLOG_DONE.md`, each with its own row: its Tier, its result (the metric delta, or what changed for the player) and the commit hash. Record the batch's **Actual time** once (rough wall-clock for the whole run, including fix rounds and troubleshooting) on the first item. The other rows say "part of batch Bn (see ID)".
 - Commits: one per item when the diffs separate cleanly. Otherwise, one commit for the batch that lists every ID in its message.
 - Update `README.md` if controls or features changed.
 - Commit (authored as Luke Bennie, per `CLAUDE.md`) the `src/` changes together with the rebuilt `index.html`, then `git push` as a separate command (the hook refuses a commit and a push in one command). The commit hook blocks a commit whose `index.html` isn't current with its `src/` (run `python tools/build.py` and `git add index.html`), and the push hook checks the same for every pushed commit, then reruns the tests and the benchmark comparison.
 - If the batch changed the game, run `python tools/build_artifact.py` and republish `pocket-universe.html` to the claude.ai artifact. A `tooling`-only batch doesn't need a republish.
-- Have `triage` regroup the remaining Ready items if this batch dropped or added any, so the Batches table stays current.
+- Call `triage` **once** for the batch: pass it the reviewers' non-blocking findings (step 5) and any dropped items, and have it add them and regroup the Ready list in the same call. Skip the call if there's nothing to add and nothing was dropped.
 - Tell Luke what shipped, as a table with each item's ID, Tier, Est. time and a short description of the change. Then give the batch's Actual time against its Est. time, the test and benchmark numbers, and the next batch on the backlog.

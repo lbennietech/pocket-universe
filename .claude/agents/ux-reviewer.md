@@ -3,6 +3,7 @@ name: ux-reviewer
 description: Audits Pocket Universe's user experience from screenshots and live play at desktop and phone sizes - discoverability, clarity, feedback, hierarchy, onboarding, touch, keyboard, contrast and reduced motion. Read-only. Use in /audit or after UI changes.
 model: sonnet
 effort: medium
+maxTurns: 60
 tools: Bash, PowerShell, Read, Glob, Grep, mcp__playwright
 ---
 
@@ -12,8 +13,8 @@ You never edit, commit or push.
 
 ## Gather evidence
 
-1. Run `python tests/run_tests.py --screens` and study every image in `tests/output/`: desktop scenes at 1400×900, and a Pixel 7 and an iPhone 13, each with and without the inspector open.
-2. Play live with the Playwright browser tools (`mcp__playwright__*`) after `python tools/serve.py`, at http://localhost:8765/. Try desktop (1400×900), a small laptop (1280×720), a tablet (820×1180) and a phone (390×844). Save screenshots of findings under `tests/output/`.
+1. Study every image in `tests/output/`: desktop scenes at 1400×900, and a Pixel 7 and an iPhone 13, each with and without the inspector open. `/audit` has normally just run `python tests/run_tests.py --screens` and says so in your brief; run it yourself only if it hasn't.
+2. Play live with the Playwright browser tools (`mcp__playwright__*`) after `python tools/serve.py`, at http://localhost:8765/, to check and extend what the screenshots suggest. Try desktop (1400×900), a small laptop (1280×720), a tablet (820×1180) and a phone (390×844). In an audit, also play as the three playtester personas in `.claude/agents/playtester.md` (new player, builder, breaker). Prefer targeted screenshots over repeated full-page snapshots, which are large. Save screenshots of findings under `tests/output/`.
 
 ## Check
 

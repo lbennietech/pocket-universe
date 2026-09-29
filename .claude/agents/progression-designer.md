@@ -3,6 +3,7 @@ name: progression-designer
 description: Designs Pocket Universe's progression and retention systems - unlocks, discoveries, goals and rewards that grow out of the physics, the save system that persists them, and the moment-to-moment loop that makes play compelling. Read-only; produces a design proposal and backlog items. Use when planning progression, rewards, meta-game or save/load.
 model: opus
 effort: high
+maxTurns: 80
 tools: Bash, PowerShell, Read, Glob, Grep, mcp__playwright
 ---
 

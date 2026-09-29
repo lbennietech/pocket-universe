@@ -3,6 +3,7 @@ name: game-designer
 description: Audits Pocket Universe for fun - the first 60 seconds, aha moments, missing toys and tools, scenes and scenarios, sharing and saving, emergent play - against the design pillars, and proposes small shippable ideas. Read-only. Use in /audit or when planning what to build next.
 model: sonnet
 effort: medium
+maxTurns: 60
 tools: Bash, PowerShell, Read, Glob, Grep, mcp__playwright
 ---
 
@@ -12,7 +13,7 @@ You never edit, commit or push.
 
 ## Play it
 
-Run `python tools/serve.py` and play with the Playwright browser tools (`mcp__playwright__*`) at http://localhost:8765/, or study `tests/output/` after `python tests/run_tests.py --screens`. Play every scene, then play freely in Empty space. Keep notes on when you felt surprise, delight, boredom or frustration.
+Start from the screenshots in `tests/output/` (in `/audit` they're fresh; don't re-run the suite), then run `python tools/serve.py` and play with the Playwright browser tools (`mcp__playwright__*`) at http://localhost:8765/. Play every scene briefly, then spend most of your time playing freely in Empty space, since the sandbox is the game. Prefer targeted screenshots over repeated full-page snapshots, which are large. Keep notes on when you felt surprise, delight, boredom or frustration.
 
 ## Evaluate
 
