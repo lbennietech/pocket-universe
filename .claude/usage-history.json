@@ -1,0 +1,60 @@
+[
+ {
+  "until": "2026-09-29T09:18:24+00:00",
+  "since": null,
+  "total_usd": 151.16,
+  "runs": 49,
+  "kinds": {
+   "main session": {
+    "share": 0.476,
+    "per_run": 18.0,
+    "turns": 140
+   },
+   "implementer-deep": {
+    "share": 0.204,
+    "per_run": 15.4,
+    "turns": 125
+   },
+   "implementer-opus": {
+    "share": 0.082,
+    "per_run": 4.11,
+    "turns": 69
+   },
+   "general-purpose": {
+    "share": 0.081,
+    "per_run": 0.87,
+    "turns": 22
+   },
+   "playtester": {
+    "share": 0.038,
+    "per_run": 0.96,
+    "turns": 56
+   },
+   "implementer": {
+    "share": 0.034,
+    "per_run": 2.55,
+    "turns": 72
+   },
+   "physics-reviewer": {
+    "share": 0.033,
+    "per_run": 0.83,
+    "turns": 19
+   },
+   "fork": {
+    "share": 0.031,
+    "per_run": 0.77,
+    "turns": 17
+   },
+   "triage": {
+    "share": 0.019,
+    "per_run": 0.58,
+    "turns": 14
+   },
+   "game-designer": {
+    "share": 0.002,
+    "per_run": 0.36,
+    "turns": 27
+   }
+  }
+ }
+]

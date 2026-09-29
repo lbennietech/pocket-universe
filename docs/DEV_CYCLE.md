@@ -19,7 +19,9 @@ The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterat
 | `/iterate UX-104 solo` | Ship just that one item |
 | `/iterate B2 without UX-104` | Ship a batch minus some items |
 | `/iterate B3 on Opus` | Ship a batch on a higher implementer tier |
-| `/audit` | Full review of the game by seven specialist agents, then triage into the backlog. The most expensive command, so run it rarely. |
+| `/audit` | Full review of the game by seven specialist agents, plus a Claude usage report, then triage into the backlog. The most expensive command, so run it rarely. |
+| `/audit usage` | Just the usage report and triage: no agents, tests or benchmarks. Cheap. |
+| `python tools/usage_report.py` | Where Claude usage went, per agent type, from the local session transcripts (no model tokens). `--since last` covers the period since the last `--save`. |
 | "show the backlog" / "show the batches" | Claude lists the Ready items or batches with their Tier and Est. time |
 | `python tests/run_tests.py` | All checks: three browsers, emulated phones, physics invariants. `--quick` for a load check, `--screens` to save screenshots to `tests/output/`. |
 | `python bench/run_bench.py` | Benchmarks, about 3 minutes (`--compare` about 6). Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`), plus a memory `soak`. `--compare` is a same-session A/B of the upstream `index.html` against the working copy (`--ref` picks another git ref or file); `--against baseline` compares with `bench/baseline.json` instead, and `--baseline` records a new one (only after a genuine improvement, or when the method or scenarios change). `--quick` is a fast single run, not comparable with the baseline. |
@@ -135,7 +137,7 @@ Simulation changes interact through shared physics, so `sim` and `perf` stay sma
 
 The most expensive command, so run it rarely: when the Ready list gets thin, or after a big feature lands.
 
-1. **Collect evidence.** Runs `python tests/run_tests.py --screens` and `python bench/run_bench.py --compare`.
+1. **Collect evidence.** Runs `python tests/run_tests.py --screens`, `python bench/run_bench.py --compare` and `python tools/usage_report.py --since last --save`. The usage report's findings go straight to triage as `USAGE-###` items; any that would change an agent's model or effort wait for Luke's decision.
 2. **Send out the specialists in parallel.** perf-profiler, physics-reviewer, ux-reviewer (which also plays the playtester's three personas), game-designer, efficiency-auditor, code-quality-reviewer and docs-writer each review the whole game, read-only, starting from step 1's results instead of re-running them. A finding without evidence is discarded. A focused audit (`/audit perf`, `/audit phones`) sends only the agents that cover the focus.
 3. **Triage.** `triage` drops findings without evidence, merges duplicates, scores priority, gives each item a Tier and Est. time, regroups the batches, and updates `BACKLOG.md`, keeping the status of existing items.
 4. **Report.** A summary of the headline numbers, the top five Ready items, the batches and anything that needs Luke's decision. It commits `BACKLOG.md` but doesn't push.

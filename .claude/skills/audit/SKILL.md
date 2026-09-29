@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Audit the whole of Pocket Universe for improvements - run the benchmarks and invariant tests, dispatch the specialist agents in parallel (including a docs accuracy check), triage their findings into BACKLOG.md and summarise the top five items and the batches. Use when Luke asks for an audit, a backlog refresh or "what should we improve next".
+description: Audit the whole of Pocket Universe for improvements - run the benchmarks, invariant tests and Claude usage report, dispatch the specialist agents in parallel (including a docs accuracy check), triage their findings into BACKLOG.md and summarise the top five items and the batches. Use when Luke asks for an audit, a backlog refresh or "what should we improve next".
 ---
 
 # /audit
@@ -19,6 +19,7 @@ Run these and keep the output. The agents will cite it:
 
 - `python tests/run_tests.py --screens`: functional checks in three engines, phones, physics invariants, and screenshots in `tests/output/`.
 - `python bench/run_bench.py --compare`: frame timings from a same-session A/B against the upstream `index.html`, heap growth (`long-run` and `soak`), size and budgets.
+- `python tools/usage_report.py --since last --save`: where Claude usage went since the last audit (the main session, each agent type, idle re-caching, `/code-review` levels, forks), compared with the last report, with its findings already in the audit format. It reads the local session transcripts and costs no model tokens. No agent reviews usage: pass its findings straight to `triage` in step 4. Luke is on a Pro plan, so this is part of every audit.
 
 ## 3. Dispatch the specialists in parallel
 
@@ -36,7 +37,7 @@ Launch these agents together, in the background, each with a short brief that in
 
 Tell each one that this is a whole-game audit, that it must not edit anything, and that findings without evidence will be discarded. Give each the test pass count, the benchmark summary and the screenshot folder from step 2, so none of them re-runs the suite, and tell the browser-using agents to start from those screenshots and play live only to check or extend a specific finding.
 
-If Luke names a focus ("/audit perf", "/audit phones", "/audit docs"), send only the agents that cover it, plus `triage`. If the project's agents aren't available as agent types (for example the session started outside this folder), run `general-purpose` agents and tell each to follow the matching file in `.claude/agents/`.
+If Luke names a focus ("/audit perf", "/audit phones", "/audit docs"), send only the agents that cover it, plus `triage`. `/audit usage` runs only the usage report and `triage`: no tests, benchmarks or agents. If the project's agents aren't available as agent types (for example the session started outside this folder), run `general-purpose` agents and tell each to follow the matching file in `.claude/agents/`.
 
 ## 4. Triage
 
@@ -46,7 +47,8 @@ When all have reported, pass every finding to the `triage` agent. It updates `BA
 
 Summarise in plain language:
 
-- the headline numbers (tests passed, frame times against budget, size)
+- the headline numbers (tests passed, frame times against budget, size, and the usage report's top line: total for the period and the biggest shares)
+- any usage finding that would change an agent's model or effort, as a decision for Luke (it trades quality for usage), not as a done deal
 - the **top five** Ready items, each with one line on what it is and why it matters
 - the **batches** (ID, category, tier, item count, Est. time), so Luke can see what the next few `/iterate` runs will ship
 - anything that needs Luke's decision (items that touch a pillar, or big A/B choices)
