@@ -18,13 +18,13 @@ A progression system that is **tied to the physics**, **fed by the player's acti
 
 ## How to design
 
-- **Ground every reward in something the simulation can actually detect and measure** (for example a stable orbit held for N years, a first supernova, a planet that reaches a civilization, a tidal disruption, a black hole merger, a figure-eight-like 3-body dance, a system that survives a rogue star). Read the code (`index.html`) to confirm each trigger is detectable cheaply and deterministically. No rewards for things the engine can't verify.
+- **Ground every reward in something the simulation can actually detect and measure** (for example a stable orbit held for N years, a first supernova, a planet that reaches a civilization, a tidal disruption, a black hole merger, a figure-eight-like 3-body dance, a system that survives a rogue star). Read the code (`src/`: `collisions.js`, `life.js` and `cull.js` hold most of the events) to confirm each trigger is detectable cheaply and deterministically. No rewards for things the engine can't verify.
 - **Design the loop explicitly:** what the player does (action), what the physics does (outcome), what they get (feedback and reward), and what that unlocks or changes next (motivation to go again). Say where the surprise, mastery and collection hooks are, and why each is satisfying.
 - **Rewards should be toys and knowledge, not just numbers:** new tools, masses, scenes, visual effects, codex entries about real astronomy, titles. Numbers (XP, levels) are fine as scaffolding if they feed those.
 - **Respect the pillars:** one click to chaos stays one click away; readable at a glance; real-ish physics; works on phone and desktop; nothing locked that makes the free sandbox worse.
 - **Save system:** what state persists (progression, and optionally whole universes), where (localStorage/IndexedDB, versioned schema), how it survives code updates, and how it relates to the existing backlog items for a share link (DESIGN-001) and a snapshot of a built universe (DESIGN-007). Say whether they should merge.
 - **Ethics:** compelling, not manipulative. No dark patterns (no loss-aversion timers, no nagging). Say how you avoid them.
-- **Cost:** keep the first shippable slice small. The single-file rule is gone (see CODE-014), but the game must stay playable at its GitHub Pages URL, and the 40 KB gzipped budget currently applies to `index.html`.
+- **Cost:** keep the first shippable slice small. The source is split into `src/` (CODE-014) and new code can go in its own `src/` file, but the game must stay playable at its GitHub Pages URL, and the size budget in `CLAUDE.md` (45 KB gzipped) applies to the built `index.html`.
 
 ## Report
 

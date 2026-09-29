@@ -37,7 +37,7 @@ Luke often adds requests mid-run. Before picking a batch (and again whenever new
 
 ## 2. Implement
 
-Brief **one** implementer agent with every item in the batch: each item's full row (ID, area, impact, effort, evidence) and its proposal. It works through them one at a time as isolated edits. For each item, it makes the **smallest reasonable change** that delivers it, in `index.html` (plus tests if the behaviour is new), using `rand()` never `Math.random()`, and adding or extending a check in `tests/harness.js` or `tests/invariants.js` for new behaviour. It runs the tests once at the end and reports per item what changed. It never commits or pushes.
+Brief **one** implementer agent with every item in the batch: each item's full row (ID, area, impact, effort, evidence) and its proposal. It works through them one at a time as isolated edits. For each item, it makes the **smallest reasonable change** that delivers it, in the matching `src/` files, never the built `index.html` (plus tests if the behaviour is new), using `rand()` never `Math.random()`, and adding or extending a check in `tests/harness.js` or `tests/invariants.js` for new behaviour. It runs the tests once at the end (they rebuild `index.html` from `src/` first) and reports per item what changed, citing `src/<file>:line` or function names. It never commits or pushes. Point it at the `src/` files the items touch (`docs/ARCHITECTURE.md` lists what's in each), so it doesn't need to read the rest.
 
 Never run two implementer agents on the same working tree at once: they'd overwrite each other's uncommitted edits. Only split a batch across agents with separate git worktrees, as in the A/B convention.
 
@@ -77,7 +77,7 @@ Pass the reviewers' findings to `triage`. Send blockers back to the same impleme
 - Move every shipped item to **Done**, each with its own row: its Tier, its result (the metric delta, or what changed for the player) and the commit hash. Record the batch's **Actual time** once (rough wall-clock for the whole run, including fix rounds and troubleshooting) on the first item. The other rows say "part of batch Bn (see ID)".
 - Commits: one per item when the diffs separate cleanly. Otherwise, one commit for the batch that lists every ID in its message.
 - Update `README.md` if controls or features changed.
-- Commit (authored as Luke Bennie, per `CLAUDE.md`), then `git push`. The push hook reruns the tests and the benchmark comparison.
+- Commit (authored as Luke Bennie, per `CLAUDE.md`) the `src/` changes together with the rebuilt `index.html`, then `git push` as a separate command (the hook refuses a commit and a push in one command). The commit hook blocks a commit whose `index.html` isn't current with its `src/` (run `python tools/build.py` and `git add index.html`), and the push hook checks the same for every pushed commit, then reruns the tests and the benchmark comparison.
 - If the batch changed the game, run `python tools/build_artifact.py` and republish `pocket-universe.html` to the claude.ai artifact. A `tooling`-only batch doesn't need a republish.
 - Have `triage` regroup the remaining Ready items if this batch dropped or added any, so the Batches table stays current.
 - Tell Luke what shipped, as a table with each item's ID, Tier, Est. time and a short description of the change. Then give the batch's Actual time against its Est. time, the test and benchmark numbers, and the next batch on the backlog.

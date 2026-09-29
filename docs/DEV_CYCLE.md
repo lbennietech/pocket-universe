@@ -23,8 +23,9 @@ The full steps are in `.claude/skills/audit/SKILL.md` and `.claude/skills/iterat
 | "show the backlog" / "show the batches" | Claude lists the Ready items or batches with their Tier and Est. time |
 | `python tests/run_tests.py` | All checks: three browsers, emulated phones, physics invariants. `--quick` for a load check, `--screens` to save screenshots to `tests/output/`. |
 | `python bench/run_bench.py` | Benchmarks, about 3 minutes (`--compare` about 6). Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`), plus a memory `soak`. `--compare` is a same-session A/B of the upstream `index.html` against the working copy (`--ref` picks another git ref or file); `--against baseline` compares with `bench/baseline.json` instead, and `--baseline` records a new one (only after a genuine improvement, or when the method or scenarios change). `--quick` is a fast single run, not comparable with the baseline. |
-| `python tools/serve.py` | Serves the game at http://localhost:8765/ for the Playwright browser tool. |
-| `python tools/build_artifact.py` | Rebuilds `pocket-universe.html` for the claude.ai artifact (it skips the rebuild if `index.html` hasn't changed). |
+| `python tools/build.py` | Rebuilds `index.html` from `src/`. The tests, benchmarks, `serve.py`, `build_artifact.py` and the after-edit hook already do this for you. `--check` fails if `index.html` isn't current, `--check-staged` checks what `git commit` would commit (the commit hook uses this), `--check-ref <ref>` checks a commit (the push hook runs it on every ref it pushes), and `--where <line>` maps an `index.html` line to its `src/` file and line. |
+| `python tools/serve.py` | Serves the game at http://localhost:8765/ for the Playwright browser tool, rebuilding `index.html` from `src/` on each page load if `src/` changed. |
+| `python tools/build_artifact.py` | Rebuilds `pocket-universe.html` for the claude.ai artifact, from a freshly built `index.html` (it skips the rebuild if `index.html` hasn't changed). |
 | `/effort high` | For hard reasoning in the main session. Return to medium afterwards. |
 
 ## The backlog
@@ -108,7 +109,8 @@ Simulation changes interact through shared physics, so `sim` and `perf` stay sma
    - Claude says which batch it is, its category, tier, items, reviews and Est. time, then moves the items to In progress.
    - If the Batches table is stale, `triage` regroups first.
 2. **Implement.** One implementer agent (the batch's tier) takes the whole batch and works through the items one at a time as isolated edits.
-   - For each item it makes the smallest change that delivers it, in `index.html`, and adds a check in `tests/harness.js` or `tests/invariants.js` for new behaviour.
+   - For each item it makes the smallest change that delivers it, in the matching `src/` files (never in the built `index.html`), and adds a check in `tests/harness.js` or `tests/invariants.js` for new behaviour.
+   - It reads only the `src/` files the item touches (`docs/ARCHITECTURE.md` says which file holds what) and cites code as `src/<file>:line` or by function name.
    - It runs the tests once at the end.
    - Two agents never share a working tree.
    - An item that turns out riskier than its category suggests is skipped and goes back to Ready.
@@ -124,7 +126,7 @@ Simulation changes interact through shared physics, so `sim` and `perf` stay sma
    - Each item gets its own Done row: Tier, result and commit. The batch's Actual time goes on its first item.
    - Commit per item when the diffs separate cleanly. Otherwise use one commit that lists every ID.
    - Update `README.md` if controls or features changed.
-   - Commit and push. A hook reruns the tests and the benchmark comparison and blocks the push if either fails.
+   - Commit the `src/` changes with the rebuilt `index.html`, and push. A hook blocks a commit whose `index.html` isn't current with its `src/` (it checks what the commit would contain, including the command's own `git add`), and blocks a push if any pushed commit's `index.html` is stale; it then reruns the tests and the benchmark comparison, and blocks the push if any fails.
    - If the game changed, run `python tools/build_artifact.py` and republish the artifact.
    - `triage` regroups the remaining Ready items if anything was dropped or added.
    - Claude reports what shipped as a table (ID, Tier, Est. time, change), then the Actual vs. Est. time, the test and benchmark numbers, and the next batch.

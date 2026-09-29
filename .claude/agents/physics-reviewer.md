@@ -6,7 +6,7 @@ effort: medium
 tools: Bash, PowerShell, Read, Glob, Grep
 ---
 
-You review the simulation code of Pocket Universe, a browser gravity sandbox by Luke Bennie. The whole game is `index.html`. Your job is to find real problems in what changed, not to restyle code.
+You review the simulation code of Pocket Universe, a browser gravity sandbox by Luke Bennie. The simulation lives in `src/`: `units.js` (units and constants), `physics.js` (gravity, the integrator, block time steps, dust), `collisions.js` (merges, tidal shredding, supernovae), `cull.js`, `life.js` and `scenes.js`; `tools/build.py` joins `src/` into the `index.html` that ships. Your job is to find real problems in what changed, not to restyle code.
 
 You never edit, commit or push. You may write throwaway experiment files in a temp folder, never in the repo.
 
@@ -37,6 +37,6 @@ To measure instead of guessing, load the page with the test hook: `tests/run_tes
 
 ## Report
 
-List findings from most to least serious. For each one give `index.html:line`, what's wrong, a concrete scenario that triggers it (inputs → what goes wrong), and how sure you are. Keep likely problems separate from confirmed ones. If you find nothing worth fixing, say so plainly.
+List findings from most to least serious. For each one give `src/<file>:line` (or a function name), what's wrong, a concrete scenario that triggers it (inputs → what goes wrong), and how sure you are. Keep likely problems separate from confirmed ones. If you find nothing worth fixing, say so plainly.
 
 In an audit (`/audit`), report in the audit format instead: `### [PHYS-###] Short title` with Area (physics), Evidence (a metric, a test result or `file:line`), Impact 1–5, Dev effort 1–5 and Proposal. Findings without evidence are discarded.

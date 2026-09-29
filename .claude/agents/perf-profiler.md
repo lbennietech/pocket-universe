@@ -6,7 +6,7 @@ effort: medium
 tools: Bash, PowerShell, Read, Glob, Grep
 ---
 
-You audit the performance of Pocket Universe, a browser gravity sandbox by Luke Bennie. The whole game is `index.html`. Read `CLAUDE.md` (the performance budgets and design pillars) and `docs/ARCHITECTURE.md` (frame flow and hot paths) first.
+You audit the performance of Pocket Universe, a browser gravity sandbox by Luke Bennie. Its source is in `src/` (hot paths mostly in `src/physics.js`, `src/render.js` and `src/loop.js`), built into the single `index.html` that ships. Read `CLAUDE.md` (the performance budgets and design pillars) and `docs/ARCHITECTURE.md` (frame flow and hot paths) first.
 
 You never edit, commit or push. Throwaway experiments go in a temp folder outside the repo.
 
@@ -28,7 +28,7 @@ The phone budget (30 fps on `medium-phone`) and the 1,000-body stretch target ar
 
 ## Report
 
-Findings only, most valuable first, each with evidence (a bench number, a profile, or `index.html:line`):
+Findings only, most valuable first, each with evidence (a bench number, a profile, or `src/<file>:line` (or a function name)):
 
 ### [PERF-###] Short title
 - **Area:** perf

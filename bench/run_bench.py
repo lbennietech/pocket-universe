@@ -3,9 +3,11 @@
 Pocket Universe: performance benchmarks
 Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
 
-Loads the real index.html in headless Chromium with Playwright, builds seeded
-scenes (bench/scenes.js) and drives whole frames through the test hook,
-timing each one. Budgets live in CLAUDE.md under "Targets & design pillars".
+Rebuilds index.html from src/ first if src/ changed (tools/build.py), so it
+never times a stale build. Then loads the real index.html in headless
+Chromium with Playwright, builds seeded scenes (bench/scenes.js) and drives
+whole frames through the test hook, timing each one. Budgets live in CLAUDE.md under
+"Targets & design pillars".
 
     python bench/run_bench.py                 # run, write bench/results/latest.json
     python bench/run_bench.py --compare       # same-session A/B against the upstream index.html
@@ -32,7 +34,8 @@ back to bench/baseline.json.
 
 Budget-only checks run once, on the working copy: long-run (heap growth over
 ~9,000 steps), soak (scene reloads, throws, merges, supernovae and black holes,
-heap growth plus the counters that would explain it) and the file size.
+heap growth plus the counters that would explain it) and the file size: the
+built index.html, gzipped, must stay within SIZE_BUDGET_KB.
 
 Results record the method and a hash of the scenario definitions (RUNS,
 PROFILES, the soak and bench/scenes.js). Comparing with a stored baseline
@@ -61,12 +64,15 @@ except ImportError:
     sys.exit("Playwright isn't installed. Run: pip install playwright && python -m playwright install chromium")
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+import build  # noqa: E402  (tools/build.py)
+
 BENCH = ROOT / "bench"
 RESULTS = BENCH / "results"
 BASELINE = BENCH / "baseline.json"
 LATEST = RESULTS / "latest.json"
 
-SIZE_BUDGET_KB = 45.0
+SIZE_BUDGET_KB = 45.0   # the built index.html (what GitHub Pages serves), gzipped
 HEAP_GROWTH_BUDGET_MB = 5.0
 
 # browser context per profile; the canvas is sized by viewport x devicePixelRatio (capped at 2)
@@ -505,6 +511,10 @@ def main():
         unknown = [n for n in names if n not in RUNS and n != "soak"]
         if unknown:
             sys.exit(f"Unknown scenes: {unknown}. Known: {list(RUNS) + ['soak']}")
+        try:
+            build.ensure()
+        except build.BuildError as e:
+            sys.exit("FAIL: " + str(e))
         ref = None
         if ab:
             ref = reference(a.ref)

@@ -1,0 +1,147 @@
+<!--
+  Pocket Universe: the page shell
+  Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
+  The <head>, the page markup and the script wrapper. tools/build.py builds
+  index.html from this, replacing the two build: marker lines with src/style.css
+  and the src/*.js files. This header isn't shipped; the one below is.
+-->
+
+<!doctype html>
+<!--
+  Pocket Universe: a gravity sandbox for the browser.
+  Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
+  https://github.com/lbennietech/pocket-universe
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pocket Universe</title>
+<meta name="description" content="A gravity sandbox in your browser: throw planets, comets, stars and black holes into space, watch orbits, tidal disruptions and supernovae, and nurture life in habitable zones.">
+<meta name="author" content="Luke Bennie">
+<meta name="copyright" content="Copyright (c) 2026 Luke Bennie">
+<meta name="theme-color" content="#04050a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304050a'/%3E%3Cellipse cx='16' cy='16' rx='12' ry='5.5' fill='none' stroke='%23f4b860' stroke-width='1.6' transform='rotate(-25 16 16)'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23fff4e2'/%3E%3Ccircle cx='26' cy='11.5' r='2' fill='%237fb6ff'/%3E%3C/svg%3E">
+<style>
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; height: 100%; }
+  body { margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Orbitron:wght@700;800&display=swap">
+<style>
+<!-- build: style.css -->
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="sky" aria-label="Gravity simulation. Drag to move around, click or tap an object to inspect it, hold Ctrl and drag (or touch and hold) to throw objects into space."></canvas>
+
+  <div class="top">
+    <div class="brand">
+      <h1 class="mark">Pocket<span>Universe</span></h1>
+      <dl class="readout">
+        <dt>Elapsed</dt><dd id="rTime">0.0 yr</dd>
+        <dt>Bodies</dt><dd id="rBodies">0</dd>
+        <dt>Dust</dt><dd id="rDust">0</dd>
+        <dt>Heaviest</dt><dd id="rHeavy">—</dd>
+        <dt>Life</dt><dd id="rLife">None yet</dd>
+      </dl>
+    </div>
+    <div class="side">
+      <div class="scene panel">
+        <label for="scene">Scene</label>
+        <select id="scene">
+          <option value="galaxies">Galaxies collide</option>
+          <option value="cradle">Cradle of life</option>
+          <option value="feast">Black hole feast</option>
+          <option value="eight">Figure eight</option>
+          <option value="formation">Solar system forming</option>
+          <option value="binary">Binary star</option>
+          <option value="mayhem">Mayhem</option>
+          <option value="empty">Empty space</option>
+        </select>
+        <button class="chip icon" id="help" title="How to play, and what this scene is about (H)" aria-label="Help">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4"/><circle cx="8" cy="11.6" r=".4" fill="currentColor"/></svg>
+        </button>
+        <button class="chip icon" id="restart" title="Restart scene (R)" aria-label="Restart scene">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13 8a5 5 0 1 1-1.6-3.7"/><path d="M13 2.5v3h-3"/></svg>
+        </button>
+      </div>
+      <section id="card" class="panel" hidden aria-label="Inspector">
+        <header>
+          <span class="glyph g-planet" id="cGlyph"></span>
+          <h2 id="cTitle">Planet</h2>
+          <button class="chip mini toggle" id="cFollow" aria-pressed="true" title="Keep the camera on this object (F)">Follow</button>
+          <button class="chip mini icon" id="cClose" aria-label="Close inspector" title="Close (Esc)">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </header>
+        <dl id="cStats"></dl>
+        <p id="cNote"></p>
+        <button class="chip mini" id="cSupernova" hidden>Go supernova</button>
+      </section>
+    </div>
+  </div>
+
+  <div id="hint"></div>
+
+  <div class="bottom">
+    <ol id="feed" aria-live="polite"></ol>
+
+    <nav class="dock panel" aria-label="Controls">
+      <div class="group" role="group" aria-label="What to create">
+        <button class="chip" data-tool="planet" aria-pressed="true" title="Planet (1)"><span class="glyph g-planet"></span>Planet</button>
+        <button class="chip" data-tool="comet" aria-pressed="false" title="Comet (2)"><span class="glyph g-comet"></span>Comet</button>
+        <button class="chip" data-tool="star" aria-pressed="false" title="Star (3)"><span class="glyph g-star"></span>Star</button>
+        <button class="chip" data-tool="bh" aria-pressed="false" title="Black hole (4)"><span class="glyph g-bh"></span>Black hole</button>
+        <button class="chip" data-tool="dust" aria-pressed="false" title="Dust cloud (5)"><span class="glyph g-dust"></span>Dust</button>
+        <button class="chip toggle" id="assist" aria-label="Auto-orbit" aria-pressed="false" title="Throw into a perfect circular orbit (O, or hold Shift while throwing)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="8" cy="8" rx="6.5" ry="3.6" transform="rotate(-25 8 8)"/><circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg><span class="lbl">Auto-orbit</span><span class="lbl-short">Orbit</span>
+        </button>
+      </div>
+      <span class="sep"></span>
+      <div class="group" role="group" aria-label="Time">
+        <button class="chip icon" id="pause" title="Pause (Space)" aria-label="Pause" aria-pressed="false">
+          <svg id="icoPause" viewBox="0 0 16 16" fill="currentColor"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg>
+          <svg id="icoPlay" viewBox="0 0 16 16" fill="currentColor" hidden><path d="M4.5 2.8v10.4a.6.6 0 0 0 .9.5l8.3-5.2a.6.6 0 0 0 0-1L5.4 2.3a.6.6 0 0 0-.9.5z"/></svg>
+        </button>
+        <span class="speed" title="Simulation speed: how much time passes each second ([ slower, ] faster)">
+          <input type="range" id="speed" min="0" max="1000" step="1" aria-label="Simulation speed">
+        </span>
+        <button class="chip num" id="speedLabel" title="Reset to normal speed">9.0 days/s</button>
+      </div>
+      <span class="sep"></span>
+      <div class="group" role="group" aria-label="View">
+        <button class="chip toggle" id="trails" aria-pressed="true" title="Trails (T)">Trails</button>
+        <button class="chip toggle" id="warp" aria-pressed="false" title="Show how mass bends space (G)">Warp</button>
+        <button class="chip toggle" id="zones" aria-pressed="false" title="Habitable zones (Z)">Zones</button>
+        <button class="chip icon" id="center" title="Center view (F)" aria-label="Center view">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="4.5"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <div class="scale" aria-hidden="true"><span id="scaleLabel">1 AU</span><i id="scaleBar"></i></div>
+  </div>
+</div>
+
+<script>
+/*
+ * Pocket Universe
+ * Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
+ *
+ * An N-body gravity sandbox: planets, comets, stars, black holes and dust,
+ * with collisions, tidal disruption, supernovae and life in habitable zones.
+ * Plain JavaScript on a 2D canvas, with no dependencies.
+ */
+(() => {
+  'use strict';
+
+<!-- build: scripts -->
+})();
+</script>
+
+</body>
+</html>

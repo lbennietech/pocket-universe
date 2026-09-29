@@ -4,14 +4,18 @@ Pocket Universe: build the claude.ai copy
 Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
 
 Writes pocket-universe.html, the version published as a private claude.ai
-artifact, from index.html. The artifact host supplies its own <html>, <head>
-and <body>, so this keeps only the title, viewport, fonts, styles, markup and
-script. pocket-universe.html is ignored by git.
+artifact, from index.html (first rebuilding index.html from src/ with
+tools/build.py if src/ changed, so the artifact is never stale). The
+artifact host supplies its own <html>, <head> and <body>, so this keeps only
+the title, viewport, fonts, styles, markup and script. pocket-universe.html is ignored by git.
 
     python tools/build_artifact.py
 """
 import re
+import sys
 from pathlib import Path
+
+import build  # tools/build.py
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "index.html"
@@ -49,6 +53,10 @@ def strip_styles(html):
 def main():
     import hashlib
 
+    try:
+        build.ensure()
+    except build.BuildError as e:
+        sys.exit("FAIL: " + str(e))
     html = SOURCE.read_text(encoding="utf-8")
     source_hash = hashlib.sha256(html.encode("utf-8")).hexdigest()
 

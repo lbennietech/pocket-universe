@@ -3,7 +3,9 @@
 Pocket Universe: automated tests
 Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
 
-Plays the real index.html with Playwright (Python):
+First rebuilds index.html from src/ if src/ changed (tools/build.py), so it
+never tests a stale build; it stops with instructions if index.html was
+edited by hand. Then it plays the real index.html with Playwright (Python):
   - in-page input checks (tests/harness.js) in Chromium, Firefox and WebKit
     (Safari's engine) at desktop size
   - real mouse input: drag to pan, Ctrl-drag to throw, click to inspect
@@ -31,6 +33,9 @@ except ImportError:
     sys.exit("Playwright isn't installed. Run: pip install playwright && python -m playwright install chromium firefox webkit")
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+import build  # noqa: E402  (tools/build.py)
+
 TESTS = ROOT / "tests"
 OUT = TESTS / "output"
 PAGE = (ROOT / "index.html").as_uri()
@@ -259,6 +264,12 @@ def main():
     ap.add_argument("--browsers", default="chromium,firefox,webkit")
     a = ap.parse_args()
     res = Results()
+    try:
+        status = build.ensure()   # 'current', or 'rebuilt' when src/ had changed
+    except build.BuildError as e:
+        res.add("index.html is built from the current src/", False, str(e))
+        sys.exit(1)
+    res.add(f"index.html is built from the current src/ ({status})", True)
     engines = [b.strip() for b in a.browsers.split(",") if b.strip()]
     with sync_playwright() as pw:
         if a.quick:

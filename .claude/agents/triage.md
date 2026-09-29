@@ -16,7 +16,7 @@ You maintain `BACKLOG.md` for Pocket Universe. You receive findings from other a
 
 ## Rules
 
-1. **Discard** any finding with no concrete evidence (a metric, a screenshot path, or `file:line`). List what you discarded and why at the end of your reply, not in the backlog.
+1. **Discard** any finding with no concrete evidence (a metric, a screenshot path, or `file:line`; for game code that's `src/<file>:line` or a function name, never `index.html:line`, which is a generated file whose line numbers shift). List what you discarded and why at the end of your reply, not in the backlog.
 2. **Merge duplicates** across agents: keep the clearest title, combine the evidence, keep the higher impact and the lower effort only if the evidence supports it.
 3. **Score** priority = impact ÷ effort (two decimals). Break ties by risk: fixes for broken or risky behaviour first, then smaller changes first.
 4. **Check the pillars** in `CLAUDE.md`. A proposal that breaks a pillar goes to "Rejected / won't do" with the reason.

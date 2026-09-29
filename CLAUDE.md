@@ -1,10 +1,12 @@
 # Pocket Universe
 
-A browser gravity sandbox by Luke Bennie. Today everything in the game lives in `index.html`: plain HTML, CSS and JavaScript on a 2D canvas, with no build step and no dependencies beyond Google Fonts. Keeping it in a single file is not a rule (Luke dropped that on 2026-09-28): the game may be split into several files, with a build step if one earns its place (see CODE-014 in `BACKLOG.md`). The one hard requirement is that it stays playable at the GitHub Pages URL below. It's published at https://lbennietech.github.io/pocket-universe/ from the `main` branch. `docs/ARCHITECTURE.md` explains how the code is laid out and how a frame flows, and `docs/DEV_CYCLE.md` explains the audit and iterate workflow.
+A browser gravity sandbox by Luke Bennie: plain HTML, CSS and JavaScript on a 2D canvas, with no dependencies beyond Google Fonts and nothing to install. The source lives in `src/`, split by area (physics, collisions, rendering, input, ...), and `tools/build.py` (plain Python, no packages) joins it into the single self-contained `index.html` that's committed at the repo root and served as is (CODE-014, 2026-09-29). The one hard requirement is that the game stays playable at the GitHub Pages URL below. It's published at https://lbennietech.github.io/pocket-universe/ from the `main` branch. `docs/ARCHITECTURE.md` explains how the code is laid out and how a frame flows, and `docs/DEV_CYCLE.md` explains the audit and iterate workflow.
 
 ## Files
 
-- `index.html`: the game. Edit this one.
+- `src/`: the game's source. Edit these. `shell.html` is the page (head and markup), `style.css` the styles, and the script is split into `units.js`, `state.js`, `helpers.js`, `bodies.js`, `physics.js` (gravity, integrator, block time steps, dust), `collisions.js` (merges, tidal shredding, supernovae), `cull.js`, `life.js`, `scenes.js`, `viewport.js`, `aiming.js`, `input.js`, `ui.js`, `render.js`, `loop.js`, `testhook.js` and `boot.js`. The script files share one scope (they're joined inside one function), so they're plain code, not modules. `docs/ARCHITECTURE.md` says what's in each. Cite code as `src/<file>:line` or by function name, never `index.html:line`.
+- `index.html`: the built game, committed so GitHub Pages serves it. **Don't edit it**: it's generated from `src/` by `python tools/build.py`, and its line 2 is a stamp that catches hand edits. The tests, benchmarks, `tools/serve.py`, `tools/build_artifact.py` and the after-edit hook all rebuild it first when `src/` has changed, and stop with instructions if it was edited by hand. `python tools/build.py --where 1234` maps a line of `index.html` (from a stack trace, say) back to its `src/` file and line.
+- `tools/build.py`: the build. `--check` fails if `index.html` isn't current with `src/`; `--check-ref HEAD` checks a commit. The order the script files run in is its `SCRIPTS` list: a new `src/` file must be added there, or the build fails.
 - `tests/run_tests.py`: Playwright (Python) test runner. It plays the game in Chromium, Firefox and WebKit (Safari's engine) and on emulated phones, using scripted and real input, and runs the physics invariant tests. `--screens` also saves screenshots to `tests/output/` (gitignored), and `--quick` does a few-second load check. The checks themselves are `tests/harness.js` (in-page input checks) and `tests/invariants.js` (physics).
 - `bench/run_bench.py`: performance benchmarks on seeded scenes. Each metric is the median of 5 runs interleaved across the scenes (3 for `long-run`). `--compare` is a same-session A/B: it times the upstream `index.html` (normally `origin/main`) and the working copy side by side, so drift between sessions cancels out. A `soak` run and `long-run` check heap growth. `bench/baseline.json` is the committed baseline (budgets and history), and `bench/results/latest.json` holds the latest run (gitignored).
 - `tools/build_artifact.py`: rebuilds `pocket-universe.html`, the copy published as a private claude.ai artifact (https://claude.ai/artifact/QMJGjmuBKfrCHBa8WvXdK5). That file is ignored by git.
@@ -21,7 +23,7 @@ A browser gravity sandbox by Luke Bennie. Today everything in the game lives in 
 5. If the change touches the simulation (gravity, collisions, sizes, masses, speed or time-stepping, dust, life rules or scenes), also have the **physics-reviewer** agent review it.
 6. Run `python tools/build_artifact.py` and republish `pocket-universe.html` to the claude.ai artifact, so both copies match.
 
-A hook blocks `git push` of this repository if the tests or the benchmark comparison fail (see `.claude/hooks/`). Pushes of other repositories run from a session here, such as Coldstarter, aren't gated.
+Commit `index.html` together with the `src/` change that produced it, and run the commit and the push as separate commands (the hook refuses both in one). A hook blocks `git commit` of this repository if the `index.html` being committed isn't current with the `src/` being committed, and blocks `git push` if any pushed commit's `index.html` isn't current with its `src/`, or if the tests or the benchmark comparison fail (see `.claude/hooks/`). Pushes of other repositories run from a session here, such as Coldstarter, aren't gated.
 
 ## Targets & design pillars
 
@@ -34,7 +36,7 @@ Measured by `bench/run_bench.py` in headless Chromium. The "phone" profile uses 
 - **Everyday scene** (`medium`: 300 bodies plus 8,000 dust): 60 fps on a mid-range laptop (≤ 16.6 ms a frame on average, p95 ≤ 20 ms). On the phone profile, 30 fps (≤ 33 ms).
 - **Stretch** (`large`: 1,000 bodies plus 4,000 dust): 60 fps on a laptop. It doesn't meet this yet; that's a backlog item, not a blocker.
 - **No steady memory growth:** neither the `long-run` bench nor the `soak` (scene reloads, throws, supernovae, black holes) may grow the JS heap by more than 5 MB. Avoid new per-frame allocations in the physics and drawing hot paths.
-- **Size:** `index.html` stays at or under 45 KB gzipped (34 KB when first set at 40 KB; raised to 45 KB on 2026-09-29 as an interim, because PERF-010 left ~0.03 KB of headroom and Luke's new requests, the vanishing-objects fix and the progression system, can't fit in that). CODE-014 will redefine the budget for a multi-file game (for example the total of all game files). Lower the budget when it drops.
+- **Size:** the built `index.html` (what GitHub Pages serves, so what a player downloads) stays at or under 45 KB gzipped (34 KB when first set at 40 KB; raised to 45 KB on 2026-09-29 as an interim, because PERF-010 left ~0.03 KB of headroom and Luke's new requests, the vanishing-objects fix and the progression system, can't fit in that). Source headers in `src/` aren't shipped, so they don't count. If the game ever ships more than one file, the budget is their total. Lower the budget when it drops.
 
 ### Physics correctness
 
@@ -81,7 +83,7 @@ Checked by `tests/invariants.js`.
 
 ## Conventions
 
-- New source files start with the copyright header used in `index.html`: `Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.`
+- New source files start with the copyright header used in `index.html`: `Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.` In `src/`, that header (the comment lines up to the first blank line, saying what the file holds) is required by `tools/build.py` and isn't shipped.
 - Git commits are authored as Luke Bennie <lukebennie@gmail.com>. That's set in this repo's git config.
 - Controls must work on both desktop and touch. Desktop: drag to move, click to inspect, Ctrl (or ⌘) + drag to throw. Touch: drag to move, tap to inspect, pinch to zoom, touch and hold to throw.
 - Keep `README.md` in step with the controls and features.

@@ -4,7 +4,7 @@ A gravity sandbox that runs in your browser. Throw planets, comets, stars and bl
 
 **Play it:** https://lbennietech.github.io/pocket-universe/
 
-It's a single HTML file with no build step and no dependencies beyond two Google Fonts. Open `index.html` in any modern browser, or play it on GitHub Pages.
+It ships as a single HTML file with no dependencies beyond two Google Fonts. Open `index.html` in any modern browser, or play it on GitHub Pages.
 
 ## How to play
 
@@ -61,12 +61,13 @@ It's a single HTML file with no build step and no dependencies beyond two Google
 
 ## Development
 
-The game is `index.html`; there's nothing to build. The tests and benchmarks use Playwright for Python:
+The source is in `src/`: the page (`shell.html`), the styles (`style.css`) and the script, split by area into plain JavaScript files (`physics.js`, `collisions.js`, `render.js`, `input.js` and so on). `python tools/build.py` joins them into `index.html`, the single file that's committed and served; it's plain Python with nothing to install. Edit `src/`, never `index.html`: the tests, benchmarks and `tools/serve.py` rebuild it for you when `src/` has changed, and refuse to run over a hand-edited `index.html`. Commit the rebuilt `index.html` along with your `src/` change. The tests and benchmarks use Playwright for Python:
 
 ```
 pip install playwright
 python -m playwright install chromium firefox webkit
 
+python tools/build.py                # rebuild index.html from src/ (--check: is it current?)
 python tests/run_tests.py            # Chromium, Firefox and WebKit, phones, physics invariants
 python tests/run_tests.py --screens  # also saves desktop and phone screenshots to tests/output/
 python bench/run_bench.py --compare  # frame timings: upstream index.html against your working copy
