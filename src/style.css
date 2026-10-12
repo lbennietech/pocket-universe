@@ -37,6 +37,9 @@ body {
   -webkit-touch-callout: none;
 }
 
+/* ?embed: the simulation alone, framed inside another page */
+.embed .top, .embed .bottom, .embed #hint { display: none; }
+
 /* ---- top ---- */
 .top {
   position: absolute; top: 16px; left: 16px; right: 16px;

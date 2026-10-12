@@ -125,6 +125,28 @@ def harness_checks(browser, name, res):
     context.close()
 
 
+def embed_checks(browser, name, res):
+    """?embed hides every piece of UI and leaves the simulation running; ?scene picks the opening scene."""
+    errors = []
+    context, page = open_page(browser, errors, PAGE + "?embed&scene=formation", viewport=DESKTOP)
+    page.clock.run_for(1500)
+    out = page.evaluate("""() => ({
+        embed: document.documentElement.classList.contains('embed'),
+        hidden: ['.top', '.bottom', '#hint'].every(s => getComputedStyle(document.querySelector(s)).display === 'none'),
+        scene: window.__pu.scene,
+        runs: (window.__pu.tick(30), window.__pu.simTime > 0),
+    })""")
+    res.add(f"[{name}] ?embed hides the UI", out["embed"] and out["hidden"], out)
+    res.add(f"[{name}] ?scene=formation opens that scene and runs", out["scene"] == "formation" and out["runs"], out)
+    context.close()
+    errors2 = []
+    context, page = open_page(browser, errors2, PAGE + "?scene=nonsense", viewport=DESKTOP)
+    out = page.evaluate("() => ({ scene: window.__pu.scene, embed: document.documentElement.classList.contains('embed') })")
+    res.add(f"[{name}] an unknown ?scene falls back to galaxies, UI shown", out == {"scene": "galaxies", "embed": False}, out)
+    res.add(f"[{name}] no page errors (embed)", not errors and not errors2, (errors + errors2)[:5])
+    context.close()
+
+
 def real_mouse_checks(browser, name, res):
     errors = []
     context, page = open_page(browser, errors, viewport=DESKTOP)
@@ -279,6 +301,7 @@ def main():
                 browser = launch(pw, engine)
                 harness_checks(browser, engine, res)
                 real_mouse_checks(browser, engine, res)
+                embed_checks(browser, engine, res)
                 if engine == "chromium":
                     invariant_checks(browser, res)
                 browser.close()

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Built from src/ by tools/build.py: edit src/, not this file. sha256:078fb651f214a12a -->
+<!-- Built from src/ by tools/build.py: edit src/, not this file. sha256:ef1b339bfc230bbf -->
 <!--
   Pocket Universe: a gravity sandbox for the browser.
   Copyright (c) 2026 Luke Bennie <lukebennie@gmail.com>. All rights reserved.
@@ -54,6 +54,9 @@ body {
   display: block; cursor: grab; touch-action: none;
   -webkit-touch-callout: none;
 }
+
+/* ?embed: the simulation alone, framed inside another page */
+.embed .top, .embed .bottom, .embed #hint { display: none; }
 
 /* ---- top ---- */
 .top {
@@ -3033,7 +3036,7 @@ if (window.__PU_TEST__) {
   window.__pu = {
     cam,
     get bodies() { return bodies; }, get aim() { return aim; }, get rate() { return rate; },
-    get simTime() { return simTime; }, get dust() { return T.n; },
+    get simTime() { return simTime; }, get scene() { return sceneKey; }, get dust() { return T.n; },
     get dustState() { return { n: T.n, x: T.x.subarray(0, T.n), y: T.y.subarray(0, T.n), vx: T.vx.subarray(0, T.n), vy: T.vy.subarray(0, T.n) }; },
     get flash() { return flash; }, get shake() { return shake; },
     get selected() { return selected; }, get follow() { return follow; },
@@ -3058,9 +3061,14 @@ if (window.__PU_TEST__) {
   };
 }
 
+// ?embed shows the simulation alone, with no title, panels, dock or hint, for
+// framing it inside another page; ?scene=<key> picks the opening scene.
+const params = new URLSearchParams(location.search);
+if (params.has('embed')) document.documentElement.classList.add('embed');
+const firstScene = params.get('scene');
 resize();
 setRate(RATE_DEFAULT);
-loadScene('galaxies');
+loadScene(Object.hasOwn(SCENES, firstScene) ? firstScene : 'galaxies');
 updateHud();
 placeHint();
 addEventListener('resize', () => requestAnimationFrame(placeHint));

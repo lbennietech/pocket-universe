@@ -14,7 +14,7 @@ if (window.__PU_TEST__) {
   window.__pu = {
     cam,
     get bodies() { return bodies; }, get aim() { return aim; }, get rate() { return rate; },
-    get simTime() { return simTime; }, get dust() { return T.n; },
+    get simTime() { return simTime; }, get scene() { return sceneKey; }, get dust() { return T.n; },
     get dustState() { return { n: T.n, x: T.x.subarray(0, T.n), y: T.y.subarray(0, T.n), vx: T.vx.subarray(0, T.n), vy: T.vy.subarray(0, T.n) }; },
     get flash() { return flash; }, get shake() { return shake; },
     get selected() { return selected; }, get follow() { return follow; },

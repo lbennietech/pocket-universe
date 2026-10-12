@@ -46,6 +46,15 @@ It ships as a single HTML file with no dependencies beyond two Google Fonts. Ope
 - **Mayhem**: twelve heavy stars in a tight cluster.
 - **Empty space**: a blank canvas.
 
+## Embedding
+
+Two URL parameters let another page frame the simulation, for example in an `<iframe>`:
+
+- `?scene=<key>` opens a scene other than Galaxies collide: `galaxies`, `cradle`, `feast`, `eight`, `formation` (Solar system forming), `binary`, `mayhem` or `empty`. An unknown key is ignored.
+- `?embed` hides all the UI (title and readout, scene panel, dock, event feed, scale bar and hint) and leaves just the running simulation, with the scene's own preset speed and view.
+
+For example, `https://lbennietech.github.io/pocket-universe/?embed&scene=formation` is a solar system forming, with nothing on top. The input handlers still run, so give the frame `pointer-events: none` if it should be look-only. BennieTech's site (bennienet.cloud) frames it like this.
+
 ## What's simulated
 
 - **N-body gravity** with a leapfrog integrator. Heavy bodies all attract each other; dust particles feel only the heavy bodies, so thousands of them stay cheap.

@@ -55,7 +55,7 @@ The script files, in the order they run (line counts include the header):
 | `render.js` | 555 | **Rendering**: trails, warp grid, habitable zones, dust, comets, planets (surfaces, shading, life), stars, black holes, effects, aim preview, `render()`. |
 | `loop.js` | 106 | **Main loop**: `frame()` on `requestAnimationFrame`, `advance()` (one whole frame), the `perf` timers. |
 | `testhook.js` | 40 | **Test hook**: `window.__pu`, created only when the test runner sets `window.__PU_TEST__`. |
-| `boot.js` | 18 | **Start-up**: size the canvas, load the first scene, start the loop. |
+| `boot.js` | 23 | **Start-up**: read the `?embed` and `?scene=` URL parameters (README, "Embedding"), size the canvas, load the first scene, start the loop. |
 
 Plus `shell.html` (147 lines) and `style.css` (321 lines). Where to look for a typical change: a constant is in `units.js`; how bodies move is `physics.js`; what happens when they meet is `collisions.js`; how it looks is `render.js` (and `style.css` for the HUD); a new toy or control touches `aiming.js`, `input.js` and `ui.js`; a new scene is `scenes.js`. Since the files share one scope, `grep -n "name" src/*.js` finds every use of a name.
 

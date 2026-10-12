@@ -7,9 +7,14 @@
 // shared scope inside index.html; names defined in the other files are in
 // scope here. See docs/ARCHITECTURE.md for the layout.
 
+// ?embed shows the simulation alone, with no title, panels, dock or hint, for
+// framing it inside another page; ?scene=<key> picks the opening scene.
+const params = new URLSearchParams(location.search);
+if (params.has('embed')) document.documentElement.classList.add('embed');
+const firstScene = params.get('scene');
 resize();
 setRate(RATE_DEFAULT);
-loadScene('galaxies');
+loadScene(Object.hasOwn(SCENES, firstScene) ? firstScene : 'galaxies');
 updateHud();
 placeHint();
 addEventListener('resize', () => requestAnimationFrame(placeHint));
